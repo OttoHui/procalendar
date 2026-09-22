@@ -1721,9 +1721,14 @@ async function syncCalendar({ silent = false } = {}){
       body: JSON.stringify({ token:config.token, device_id:config.deviceId, snapshot }),
     });
     if (!response.ok) throw new Error(`Supabase save HTTP ${response.status}: ${await response.text()}`);
-    await response.json();
+    const savedRows = await response.json();
+    if (savedRows[0]?.snapshot) {
+      DB.applySnapshot(savedRows[0].snapshot);
+      if (!silent) toast(`Calendar synced: ${savedRows[0].snapshot.events?.length || 0} events shared.`, { icon:'check' });
+    } else if (!silent) {
+      toast('Calendar synced, but Supabase returned no snapshot.', { icon:'x' });
+    }
     DB.settings.set('syncLastSync', new Date().toISOString());
-    if (!silent) toast('Calendar synced.', { icon:'check' });
     return true;
   } catch (err) {
     console.error('Sync failed:', err);
