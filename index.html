@@ -1742,6 +1742,10 @@ function repairSnapshotIds(snapshot){
 
 function mergeSyncSnapshots(localSnapshot, remoteSnapshot){
   const events = new Map();
+  const eventTime = event => {
+    const value = Date.parse(event.updatedAt || event.createdAt || '');
+    return Number.isFinite(value) ? value : 0;
+  };
   const eventKey = event => {
     const isOfficial = event.labelId === 'lb_cityu' || event.labelId === 'lb_holiday';
     return isOfficial
@@ -1750,10 +1754,14 @@ function mergeSyncSnapshots(localSnapshot, remoteSnapshot){
   };
   const repairedRemote = repairSnapshotIds(remoteSnapshot);
   const repairedLocal = repairSnapshotIds(localSnapshot);
-  [...repairedRemote.events, ...repairedLocal.events].forEach(event => {
+  repairedRemote.events.forEach(event => {
+    const key = eventKey(event);
+    events.set(key, event);
+  });
+  repairedLocal.events.forEach(event => {
     const key = eventKey(event);
     const current = events.get(key);
-    if (!current || String(event.updatedAt || '') >= String(current.updatedAt || '')) events.set(key, event);
+    if (!current || eventTime(event) > eventTime(current)) events.set(key, event);
   });
   const labels = new Map();
   [...repairedRemote.labels, ...repairedLocal.labels].forEach(label => {
@@ -1778,18 +1786,34 @@ async function syncCalendar({ silent = false } = {}){
     const baseUrl = config.supabaseUrl.replace(/\/$/, '');
     const headers = { 'apikey': config.supabaseAnonKey, 'Authorization': `Bearer ${config.supabaseAnonKey}`, 'Content-Type': 'application/json', 'Accept': 'application/json' };
     const localSnapshot = { events:DB.events.list(), labels:DB.labels.list(), settings:getPublicSyncSettings(), meta:{ seeded:true } };
-    const pullResponse = await fetch(`${baseUrl}/rest/v1/quad_sync?token=eq.${encodeURIComponent(config.token)}&select=snapshot`, { method:'GET', headers });
+    const pullResponse = await fetch(`${baseUrl}/rest/v1/quad_sync?token=eq.${encodeURIComponent(config.token)}&select=snapshot,updated_at`, { method:'GET', headers });
     if (!pullResponse.ok) throw new Error(`Supabase pull HTTP ${pullResponse.status}: ${await pullResponse.text()}`);
     const remoteRows = await pullResponse.json();
-    const snapshot = mergeSyncSnapshots(localSnapshot, remoteRows[0]?.snapshot || {});
+    let remoteRow = remoteRows[0] || null;
+    let snapshot = mergeSyncSnapshots(localSnapshot, remoteRow?.snapshot || {});
     DB.applySnapshot(snapshot);
-    const response = await fetch(`${baseUrl}/rest/v1/quad_sync`, {
-      method: 'POST',
-      headers: { ...headers, 'Prefer':'resolution=merge-duplicates,return=representation' },
-      body: JSON.stringify({ token:config.token, device_id:config.deviceId, snapshot, updated_at:new Date().toISOString() }),
-    });
-    if (!response.ok) throw new Error(`Supabase save HTTP ${response.status}: ${await response.text()}`);
-    const savedRows = await response.json();
+    let savedRows = [];
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const nextUpdatedAt = new Date().toISOString();
+      const saveUrl = remoteRow
+        ? `${baseUrl}/rest/v1/quad_sync?token=eq.${encodeURIComponent(config.token)}&updated_at=eq.${encodeURIComponent(remoteRow.updated_at)}`
+        : `${baseUrl}/rest/v1/quad_sync`;
+      const response = await fetch(saveUrl, {
+        method: remoteRow ? 'PATCH' : 'POST',
+        headers: { ...headers, 'Prefer':'return=representation' },
+        body: JSON.stringify({ token:config.token, device_id:config.deviceId, snapshot, updated_at:nextUpdatedAt }),
+      });
+      if (!response.ok) throw new Error(`Supabase save HTTP ${response.status}: ${await response.text()}`);
+      savedRows = await response.json();
+      if (savedRows.length || !remoteRow) break;
+      const retryResponse = await fetch(`${baseUrl}/rest/v1/quad_sync?token=eq.${encodeURIComponent(config.token)}&select=snapshot,updated_at`, { method:'GET', headers });
+      if (!retryResponse.ok) throw new Error(`Supabase retry pull HTTP ${retryResponse.status}: ${await retryResponse.text()}`);
+      const retryRows = await retryResponse.json();
+      remoteRow = retryRows[0] || null;
+      snapshot = mergeSyncSnapshots(localSnapshot, remoteRow?.snapshot || {});
+      DB.applySnapshot(snapshot);
+    }
+    if (!savedRows.length) throw new Error('Supabase save conflicted with a newer device update. Please sync again.');
     if (savedRows[0]?.snapshot) {
       DB.applySnapshot(savedRows[0].snapshot);
       if (!silent) toast(`Calendar synced: ${savedRows[0].snapshot.events?.length || 0} events shared.`, { icon:'check' });
