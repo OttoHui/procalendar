@@ -42,13 +42,15 @@ Use the steps below whenever you publish a new version and want to test the sync
    - `sync-check-ipad-01`
 8. On the Mac, create one new event and edit another event. Sync once.
 9. On the iPad, refresh the page, then click **Sync now** once. Confirm that the latest Mac snapshot appears and no old stale event remains.
-10. On the Mac, sync again and confirm the same final state is still present.
-11. In Supabase SQL Editor, verify that the server row timestamp changes after a sync:
+10. Test a real merge: while both devices have the same calendar, create `merge-mac-01` on the Mac and create `merge-ipad-01` on the iPad before either device syncs again. Sync the Mac, then sync the iPad. Both events must remain visible on both devices.
+11. On the Mac, sync again and confirm the same final state is still present. A device must not replace a newer database snapshot with its older local snapshot.
+12. In Supabase SQL Editor, verify that the server row timestamp changes after a sync:
    ```sql
-   SELECT token, device_id, updated_at
+   SELECT token, device_id, updated_at, snapshot->'events' AS events
    FROM public.quad_sync;
    ```
-12. If the app still shows old data, close the tab, clear site data again, and repeat from step 1.
+13. If a sync happens at the same time as another device update, the app pulls the newer row and retries the merge. If it reports a conflict, sync that device once more; do not erase the database.
+14. If the app still shows old data, close the tab, clear site data again, and repeat from step 1.
 
 Important: do not test with old calendar entries or older names from previous experiments, because stale local browser data can make a clean test look broken. Use short unique names only.
 
