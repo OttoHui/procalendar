@@ -1702,7 +1702,7 @@ async function syncCalendar({ silent = false } = {}){
     const headers = { 'apikey': config.supabaseAnonKey, 'Authorization': `Bearer ${config.supabaseAnonKey}`, 'Content-Type': 'application/json', 'Accept': 'application/json' };
     const localSnapshot = { events:DB.events.list(), labels:DB.labels.list(), settings:getPublicSyncSettings(), meta:{ seeded:true } };
     const pullResponse = await fetch(`${baseUrl}/rest/v1/quad_sync?token=eq.${encodeURIComponent(config.token)}&select=snapshot`, { method:'GET', headers });
-    if (!pullResponse.ok) throw new Error(`HTTP ${pullResponse.status}`);
+    if (!pullResponse.ok) throw new Error(`Supabase pull HTTP ${pullResponse.status}: ${await pullResponse.text()}`);
     const remoteRows = await pullResponse.json();
     const snapshot = mergeSyncSnapshots(localSnapshot, remoteRows[0]?.snapshot || {});
     const response = await fetch(`${baseUrl}/rest/v1/quad_sync`, {
@@ -1710,7 +1710,7 @@ async function syncCalendar({ silent = false } = {}){
       headers: { ...headers, 'Prefer':'resolution=merge-duplicates,return=representation' },
       body: JSON.stringify({ token:config.token, device_id:config.deviceId, snapshot }),
     });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) throw new Error(`Supabase save HTTP ${response.status}: ${await response.text()}`);
     const savedRows = await response.json();
     if (savedRows[0]?.snapshot) DB.applySnapshot(savedRows[0].snapshot);
     DB.settings.set('syncLastSync', new Date().toISOString());
@@ -1718,7 +1718,7 @@ async function syncCalendar({ silent = false } = {}){
     return true;
   } catch (err) {
     console.error('Sync failed:', err);
-    if (!silent) toast('Sync failed. Check the Supabase URL, key, and table policy.', { icon:'x' });
+    if (!silent) toast(`Sync failed: ${err.message}`.slice(0, 220), { icon:'x', timeout:9000 });
     return false;
   }
 }
