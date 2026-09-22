@@ -17,6 +17,35 @@ Open https://ottohui.github.io/procalendar/, open the menu, and choose **Sync se
 
 The app keeps IndexedDB as an offline cache and merges local and cloud events before saving the combined calendar.
 
+## Clean testing procedure for a new app version
+
+Use the steps below whenever you publish a new version and want to test the sync flow from a clean state.
+
+1. Delete every row from the Supabase table before testing.
+   - In Supabase SQL Editor, run:
+     DELETE FROM public.quad_sync;
+2. Re-run [supabase-schema.sql](supabase-schema.sql) to recreate the table and policies.
+3. On each device, clear the browser data for the site before testing.
+   - Open the site in the browser.
+   - Open Developer Tools.
+   - Go to Application or Storage.
+   - Clear site data / storage for this origin.
+   - Also delete the old IndexedDB data for the origin if shown.
+4. Hard refresh the page once after clearing storage.
+5. Open the app again on the Mac and iPad with the same Supabase project URL, anon key, and same shared calendar key.
+6. Use different device ids, for example:
+   - Mac: `device-mac-test-01`
+   - iPad: `device-ipad-test-01`
+7. Do not reuse old sample names such as `English` or older test titles. Use new unique names such as:
+   - `sync-check-mac-01`
+   - `sync-check-ipad-01`
+8. On the Mac, create one new event and edit another event. Sync once.
+9. On the iPad, refresh the page, then click **Sync now** once. Confirm that the latest Mac snapshot appears and no old stale event remains.
+10. On the Mac, sync again and confirm the same final state is still present.
+11. If the app still shows old data, close the tab, clear site data again, and repeat from step 1.
+
+Important: do not test with old calendar entries or older names from previous experiments, because stale local browser data can make a clean test look broken. Use short unique names only.
+
 ## Security note
 
 This simple shared-calendar version uses the shared calendar key as the calendar identifier. Anyone who knows both the public Supabase URL and that key can access that calendar. Do not store private or sensitive information in it. Supabase Auth and user-based RLS can be added later for private accounts.
