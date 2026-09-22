@@ -5,6 +5,21 @@ create table if not exists public.quad_sync (
   updated_at timestamptz not null default now()
 );
 
+create or replace function public.set_quad_sync_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists quad_sync_updated_at on public.quad_sync;
+create trigger quad_sync_updated_at
+before update on public.quad_sync
+for each row execute function public.set_quad_sync_updated_at();
+
 alter table public.quad_sync enable row level security;
 
 drop policy if exists "public calendar read" on public.quad_sync;
