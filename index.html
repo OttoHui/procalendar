@@ -683,11 +683,16 @@ const DB = (() => {
     events: {
       list: () => [...events.values()],
       get: id => events.get(id) || null,
-      create(data){ const ev = normalizeEvent(data); events.set(ev.id, ev); persist('events'); emit('events'); return ev; },
+      create(data){ const ev = normalizeEvent(data); events.set(ev.id, ev); meta.deletedEventIds = (meta.deletedEventIds || []).filter(id => id !== ev.id); persist('events'); adapter.write(K.meta, meta); emit('events'); return ev; },
       update(id, patch){ const ev = events.get(id); if(!ev) return;
         Object.assign(ev, patch, { updatedAt:new Date().toISOString() });
         events.set(id, ev); persist('events'); emit('events'); return ev; },
-      remove(id){ events.delete(id); persist('events'); emit('events'); },
+      remove(id){
+        if (!events.has(id)) return;
+        events.delete(id);
+        meta.deletedEventIds = [...new Set([...(meta.deletedEventIds || []), id])];
+        persist('events'); adapter.write(K.meta, meta); emit('events');
+      },
     },
     labels: {
       list: () => [...labels.values()],
@@ -706,6 +711,7 @@ const DB = (() => {
       set(k, v){ settings[k] = v; persist('settings'); },
       list: () => ({ ...settings }),
     },
+    deletedEventIds: () => [...new Set(meta.deletedEventIds || [])],
     restore(data){ // used by backup import
       events = new Map((data.events||[]).map(e => [e.id, normalizeEvent(e)]));
       labels = new Map((data.labels||[]).map(l => [l.id, l]));
@@ -729,6 +735,7 @@ const DB = (() => {
       const incomingSettings = Object.fromEntries(Object.entries(data.settings || {}).filter(([key]) => !SYNC_META_KEYS.has(key)));
       settings = { ...incomingSettings, ...settings, ...localSync };
       meta = { ...meta, ...(data.meta || {}), seeded:true };
+      if (Array.isArray(data.deletedEventIds)) meta.deletedEventIds = [...new Set(data.deletedEventIds)];
       persist('events'); persist('labels'); persist('settings'); adapter.write(K.meta, meta); emit('all');
     },
     wipe(){
@@ -1742,27 +1749,18 @@ function repairSnapshotIds(snapshot){
 
 function mergeSyncSnapshots(localSnapshot, remoteSnapshot){
   const events = new Map();
-  const eventTime = event => {
-    const value = Date.parse(event.updatedAt || event.createdAt || '');
-    return Number.isFinite(value) ? value : 0;
-  };
-  const eventKey = event => {
-    const isOfficial = event.labelId === 'lb_cityu' || event.labelId === 'lb_holiday';
-    return isOfficial
-      ? `official|${event.labelId}|${event.title || ''}|${event.start || ''}|${event.end || ''}`
-      : event.id || event.externalUid || `${event.title || ''}|${event.start || ''}|${event.end || ''}`;
-  };
   const repairedRemote = repairSnapshotIds(remoteSnapshot);
   const repairedLocal = repairSnapshotIds(localSnapshot);
-  repairedRemote.events.forEach(event => {
-    const key = eventKey(event);
-    events.set(key, event);
-  });
-  repairedLocal.events.forEach(event => {
-    const key = eventKey(event);
-    const current = events.get(key);
-    if (!current || eventTime(event) > eventTime(current)) events.set(key, event);
-  });
+  repairedRemote.events.forEach(event => events.set(event.id, event));
+  // Same IDs are deliberately resolved in favor of this device's local copy.
+  repairedLocal.events.forEach(event => events.set(event.id, event));
+  const deletedEventIds = new Set([
+    ...(remoteSnapshot.deletedEventIds || []),
+    ...(localSnapshot.deletedEventIds || []),
+  ]);
+  for (const [id] of events) {
+    if (deletedEventIds.has(id)) events.delete(id);
+  }
   const labels = new Map();
   [...repairedRemote.labels, ...repairedLocal.labels].forEach(label => {
     const key = label.id || `name:${label.name || ''}`;
@@ -1771,6 +1769,7 @@ function mergeSyncSnapshots(localSnapshot, remoteSnapshot){
   return {
     events:[...events.values()],
     labels:[...labels.values()],
+    deletedEventIds:[...deletedEventIds],
     settings:{ ...(remoteSnapshot.settings || {}), ...(localSnapshot.settings || {}) },
     meta:{ ...(remoteSnapshot.meta || {}), ...(localSnapshot.meta || {}) },
   };
@@ -1785,7 +1784,7 @@ async function syncCalendar({ silent = false } = {}){
   try {
     const baseUrl = config.supabaseUrl.replace(/\/$/, '');
     const headers = { 'apikey': config.supabaseAnonKey, 'Authorization': `Bearer ${config.supabaseAnonKey}`, 'Content-Type': 'application/json', 'Accept': 'application/json' };
-    const localSnapshot = { events:DB.events.list(), labels:DB.labels.list(), settings:getPublicSyncSettings(), meta:{ seeded:true } };
+    const localSnapshot = { events:DB.events.list(), labels:DB.labels.list(), deletedEventIds:DB.deletedEventIds(), settings:getPublicSyncSettings(), meta:{ seeded:true } };
     const pullResponse = await fetch(`${baseUrl}/rest/v1/quad_sync?token=eq.${encodeURIComponent(config.token)}&select=snapshot,updated_at`, { method:'GET', headers });
     if (!pullResponse.ok) throw new Error(`Supabase pull HTTP ${pullResponse.status}: ${await pullResponse.text()}`);
     const remoteRows = await pullResponse.json();
