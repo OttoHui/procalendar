@@ -1793,7 +1793,7 @@ async function syncCalendar({ silent = false } = {}){
     let snapshot = mergeSyncSnapshots(localSnapshot, remoteRow?.snapshot || {});
     DB.applySnapshot(snapshot);
     let savedRows = [];
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < 3; attempt++) {
       const nextUpdatedAt = new Date().toISOString();
       const saveUrl = remoteRow
         ? `${baseUrl}/rest/v1/quad_sync?token=eq.${encodeURIComponent(config.token)}&updated_at=eq.${encodeURIComponent(remoteRow.updated_at)}`
@@ -1803,9 +1803,12 @@ async function syncCalendar({ silent = false } = {}){
         headers: { ...headers, 'Prefer':'return=representation' },
         body: JSON.stringify({ token:config.token, device_id:config.deviceId, snapshot, updated_at:nextUpdatedAt }),
       });
-      if (!response.ok) throw new Error(`Supabase save HTTP ${response.status}: ${await response.text()}`);
-      savedRows = await response.json();
-      if (savedRows.length || !remoteRow) break;
+      const responseText = await response.text();
+      if (!response.ok && !(response.status === 409 && !remoteRow)) {
+        throw new Error(`Supabase save HTTP ${response.status}: ${responseText}`);
+      }
+      savedRows = response.ok ? JSON.parse(responseText || '[]') : [];
+      if (savedRows.length || (!remoteRow && response.ok)) break;
       const retryResponse = await fetch(`${baseUrl}/rest/v1/quad_sync?token=eq.${encodeURIComponent(config.token)}&select=snapshot,updated_at`, { method:'GET', headers });
       if (!retryResponse.ok) throw new Error(`Supabase retry pull HTTP ${retryResponse.status}: ${await retryResponse.text()}`);
       const retryRows = await retryResponse.json();
