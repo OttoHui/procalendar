@@ -1702,7 +1702,12 @@ function repairSnapshotIds(snapshot){
 
 function mergeSyncSnapshots(localSnapshot, remoteSnapshot){
   const events = new Map();
-  const eventKey = event => event.id || event.externalUid || `${event.title || ''}|${event.start || ''}|${event.end || ''}`;
+  const eventKey = event => {
+    const isOfficial = event.labelId === 'lb_cityu' || event.labelId === 'lb_holiday';
+    return isOfficial
+      ? `official|${event.labelId}|${event.title || ''}|${event.start || ''}|${event.end || ''}`
+      : event.id || event.externalUid || `${event.title || ''}|${event.start || ''}|${event.end || ''}`;
+  };
   const repairedRemote = repairSnapshotIds(remoteSnapshot);
   const repairedLocal = repairSnapshotIds(localSnapshot);
   [...repairedRemote.events, ...repairedLocal.events].forEach(event => {
