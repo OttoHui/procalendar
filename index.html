@@ -1714,20 +1714,20 @@ async function syncCalendar({ silent = false } = {}){
     if (!pullResponse.ok) throw new Error(`Supabase pull HTTP ${pullResponse.status}: ${await pullResponse.text()}`);
     const remoteRows = await pullResponse.json();
     const snapshot = mergeSyncSnapshots(localSnapshot, remoteRows[0]?.snapshot || {});
+    DB.applySnapshot(snapshot);
     const response = await fetch(`${baseUrl}/rest/v1/quad_sync`, {
       method: 'POST',
       headers: { ...headers, 'Prefer':'resolution=merge-duplicates,return=representation' },
       body: JSON.stringify({ token:config.token, device_id:config.deviceId, snapshot }),
     });
     if (!response.ok) throw new Error(`Supabase save HTTP ${response.status}: ${await response.text()}`);
-    const savedRows = await response.json();
-    if (savedRows[0]?.snapshot) DB.applySnapshot(savedRows[0].snapshot);
+    await response.json();
     DB.settings.set('syncLastSync', new Date().toISOString());
     if (!silent) toast('Calendar synced.', { icon:'check' });
     return true;
   } catch (err) {
     console.error('Sync failed:', err);
-    if (!silent) toast(`Sync failed: ${err.message}`.slice(0, 220), { icon:'x', timeout:9000 });
+    toast(`Sync failed: ${err.message}`.slice(0, 220), { icon:'x', timeout:9000 });
     return false;
   }
 }
