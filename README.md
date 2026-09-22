@@ -1,71 +1,23 @@
-# Quad cloud sync
+# Quad local calendar
 
-The GitHub Pages version can use Supabase directly. XAMPP, Apache, PHP, and MySQL are not required for normal use after this setup.
+Quad is now configured for local-only use. It stores events, labels, settings, reminders, and timetable data in the browser using IndexedDB with localStorage fallback.
 
-## Supabase setup
+Supabase and cross-device synchronization are not used by the app.
 
-1. Create a Supabase project at https://supabase.com.
-2. Open **SQL Editor**.
-3. Paste and run [supabase-schema.sql](supabase-schema.sql). This creates the per-item `quad_items` table used by the current sync system.
-4. Open **Project Settings > API** and copy the Project URL and publishable/anon key.
+## Use the calendar
 
-The anon key is intended for browser applications. Never put a Supabase service-role key in this website.
+Open the app in a browser. Create and edit events normally. Use the menu to export a JSON backup or restore a previous backup.
 
-## Configure each device
+The data belongs to the current browser profile. Different devices do not share changes.
 
-Open https://ottohui.github.io/procalendar/, open the menu, and choose **Sync settings**. Enter the same Supabase URL, anon key, and shared calendar key on every device. Use a different device id for each device and enable sync. Press **Sync now** after saving.
+## Clean local reset
 
-The app keeps IndexedDB as an offline cache. The cloud stores each event and label independently in `quad_items`; the app never replaces the whole calendar with one device snapshot. Events use stable IDs, and deletes remain as tombstone rows.
+Use **Menu > Erase all data** to remove the calendar from the current browser. The built-in default labels and seed academic dates are restored after reload.
 
-When both snapshots contain the same event ID, the device performing the sync keeps its local version. New IDs from either snapshot are added. Deletes are stored as tombstone IDs so a deleted event does not reappear from the other snapshot. If both devices edit the same event while offline, sync them one at a time; the second device's local version is the final version.
+For a completely clean browser test, clear site data for the app origin, including IndexedDB and localStorage, then reload the page.
 
-## Clean testing procedure for a new app version
+## Deployment
 
-Use the steps below whenever you publish a new version and want to test the sync flow from a clean state.
+The app can still be hosted on GitHub Pages or opened through a local web server. XAMPP, Apache, PHP, MySQL, and Supabase are not required.
 
-1. Delete old test data from both the old snapshot table and the new item table before testing.
-   - In Supabase SQL Editor, run:
-     DELETE FROM public.quad_items;
-       DO $$
-       BEGIN
-          IF to_regclass('public.quad_sync') IS NOT NULL THEN
-             DELETE FROM public.quad_sync;
-          END IF;
-       END $$;
-2. Re-run [supabase-schema.sql](supabase-schema.sql) to recreate the table and policies.
-   - This installs the per-item table and its timestamp trigger. The old `quad_sync` table is no longer used.
-3. On each device, clear the browser data for the site before testing.
-   - Open the site in the browser.
-   - Open Developer Tools.
-   - Go to Application or Storage.
-   - Clear site data / storage for this origin.
-   - Also delete the old IndexedDB data for the origin if shown.
-4. Hard refresh the page once after clearing storage.
-5. Open the app again on the Mac and iPad with the same Supabase project URL, anon key, and same shared calendar key.
-6. Use different device ids, for example:
-   - Mac: `device-mac-test-01`
-   - iPad: `device-ipad-test-01`
-7. Do not reuse old sample names such as `English` or older test titles. Use new unique names such as:
-   - `sync-check-mac-01`
-   - `sync-check-ipad-01`
-8. On the Mac, create one new event and edit another event. Sync once.
-9. On the iPad, refresh the page, then click **Sync now** once. Confirm that the latest Mac snapshot appears and no old stale event remains.
-10. Test a real merge: while both devices have the same calendar, create `merge-mac-01` on the Mac and create `merge-ipad-01` on the iPad before either device syncs again. Sync the Mac, then sync the iPad. Both events must remain visible on both devices.
-11. On the Mac, sync again and confirm the same final state is still present. A device must not replace a newer database snapshot with its older local snapshot.
-12. Test deletion: delete `merge-mac-01` on the Mac and sync. Sync the iPad and confirm that the deleted event stays deleted. Verify that its `quad_items` row has `deleted = true`.
-13. In Supabase SQL Editor, verify individual cloud items:
-   ```sql
-   SELECT token, item_type, item_id, deleted, device_id, updated_at
-   FROM public.quad_items
-   ORDER BY updated_at DESC;
-   ```
-14. If a sync happens at the same time as another device update, the app updates the existing row by shared calendar `token`, uses insert only when the row is absent, and handles an insert race with an update. Only if three consecutive writes fail should a sync error appear; do not erase the database in that case, wait briefly and sync again.
-15. If the app still shows old data, close the tab, clear site data again, and repeat from step 1.
-
-Important: do not test with old calendar entries or older names from previous experiments, because stale local browser data can make a clean test look broken. Use short unique names only.
-
-## Security note
-
-This simple shared-calendar version uses the shared calendar key as the calendar identifier. Anyone who knows both the public Supabase URL and that key can access that calendar. Do not store private or sensitive information in it. Supabase Auth and user-based RLS can be added later for private accounts.
-
-The app is intentionally lightweight and does not require XAMPP, Apache, PHP, or MySQL.
+The app has no cloud database dependency.
