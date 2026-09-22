@@ -1682,16 +1682,36 @@ function getPublicSyncSettings(){
   return Object.fromEntries(Object.entries(settings).filter(([key]) => !SYNC_META_KEYS.has(key)));
 }
 
+function repairSnapshotIds(snapshot){
+  const seenEvents = new Set();
+  const events = (snapshot.events || []).map(event => {
+    const repaired = { ...event };
+    if (!repaired.id || seenEvents.has(repaired.id)) repaired.id = uid();
+    seenEvents.add(repaired.id);
+    return repaired;
+  });
+  const seenLabels = new Set();
+  const labels = (snapshot.labels || []).map(label => {
+    const repaired = { ...label };
+    if (!repaired.id || seenLabels.has(repaired.id)) repaired.id = 'lb_' + uid().slice(0,8);
+    seenLabels.add(repaired.id);
+    return repaired;
+  });
+  return { ...snapshot, events, labels };
+}
+
 function mergeSyncSnapshots(localSnapshot, remoteSnapshot){
   const events = new Map();
   const eventKey = event => event.id || event.externalUid || `${event.title || ''}|${event.start || ''}|${event.end || ''}`;
-  [...(remoteSnapshot.events || []), ...(localSnapshot.events || [])].forEach(event => {
+  const repairedRemote = repairSnapshotIds(remoteSnapshot);
+  const repairedLocal = repairSnapshotIds(localSnapshot);
+  [...repairedRemote.events, ...repairedLocal.events].forEach(event => {
     const key = eventKey(event);
     const current = events.get(key);
     if (!current || String(event.updatedAt || '') >= String(current.updatedAt || '')) events.set(key, event);
   });
   const labels = new Map();
-  [...(remoteSnapshot.labels || []), ...(localSnapshot.labels || [])].forEach(label => {
+  [...repairedRemote.labels, ...repairedLocal.labels].forEach(label => {
     const key = label.id || `name:${label.name || ''}`;
     if (!labels.has(key)) labels.set(key, label);
   });
