@@ -543,6 +543,7 @@ const I = (n,s=16) => `<svg class="ic" style="width:${s}px;height:${s}px" viewBo
     DB.events.list/get/create/update/remove
     DB.labels.*  ·  DB.settings.get/set                       */
 const SYNC_META_KEYS = new Set(['syncEndpoint','supabaseUrl','supabaseAnonKey','syncToken','syncDeviceId','syncEnabled','syncLastSync']);
+const SYNC_TOMBSTONES_KEY = 'syncTombstones';
 const DEFAULT_SUPABASE_URL = 'https://ykyeqqhtppqswqjftrov.supabase.co';
 const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlreWVxcWh0cHBxc3dxamZ0cm92Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwMTgzNTYsImV4cCI6MjEwNTU5NDM1Nn0.i0rdFqLj5Zb1eEhwU1mvG8KUlQnv0mzS8FhvwhUKbWw';
 
@@ -664,28 +665,37 @@ const DB = (() => {
     events: {
       list: () => [...events.values()],
       get: id => events.get(id) || null,
-      create(data){ const ev = normalizeEvent(data); events.set(ev.id, ev); persist('events'); emit('events'); return ev; },
+      create(data){ const ev = normalizeEvent(data); events.set(ev.id, ev); meta.syncTombstones = (meta.syncTombstones || []).filter(item => !(item.kind === 'event' && item.id === ev.id)); persist('events'); adapter.write(K.meta, meta); emit('events'); return ev; },
       update(id, patch){ const ev = events.get(id); if(!ev) return;
         Object.assign(ev, patch, { updatedAt:new Date().toISOString() });
-        events.set(id, ev); persist('events'); emit('events'); return ev; },
-      remove(id){ events.delete(id); persist('events'); emit('events'); },
+        events.set(id, ev); meta.syncTombstones = (meta.syncTombstones || []).filter(item => !(item.kind === 'event' && item.id === id)); persist('events'); adapter.write(K.meta, meta); emit('events'); return ev; },
+      remove(id){
+        events.delete(id);
+        meta.syncTombstones = [...(meta.syncTombstones || []).filter(item => !(item.kind === 'event' && item.id === id)), { kind:'event', id, updatedAt:new Date().toISOString() }];
+        persist('events'); adapter.write(K.meta, meta); emit('events');
+      },
     },
     labels: {
       list: () => [...labels.values()],
       get: id => labels.get(id) || null,
-      create(data){ const l = { id:'lb_'+uid().slice(0,8), color:SWATCHES[0], ...data };
-        labels.set(l.id, l); persist('labels'); emit('labels'); return l; },
+      create(data){ const now = new Date().toISOString(); const l = { id:'lb_'+uid().slice(0,8), color:SWATCHES[0], createdAt:now, updatedAt:now, ...data };
+        labels.set(l.id, l); meta.syncTombstones = (meta.syncTombstones || []).filter(item => !(item.kind === 'label' && item.id === l.id)); persist('labels'); adapter.write(K.meta, meta); emit('labels'); return l; },
       update(id, patch){ const l = labels.get(id); if(!l) return;
-        Object.assign(l, patch); labels.set(id, l); persist('labels'); emit('labels'); },
+        Object.assign(l, patch, { updatedAt:new Date().toISOString() }); labels.set(id, l); meta.syncTombstones = (meta.syncTombstones || []).filter(item => !(item.kind === 'label' && item.id === id)); persist('labels'); adapter.write(K.meta, meta); emit('labels'); },
       remove(id){ const l = labels.get(id); if(!l || l.locked) return;
         labels.delete(id);
-        events.forEach(ev => { if(ev.labelId === id) ev.labelId = ''; });
-        persist('labels'); persist('events'); emit('labels'); },
+        events.forEach(ev => { if(ev.labelId === id) { ev.labelId = ''; ev.updatedAt = new Date().toISOString(); } });
+        meta.syncTombstones = [...(meta.syncTombstones || []).filter(item => !(item.kind === 'label' && item.id === id)), { kind:'label', id, updatedAt:new Date().toISOString() }];
+        persist('labels'); persist('events'); adapter.write(K.meta, meta); emit('labels'); },
     },
     settings: {
       get: (k, def) => settings[k] ?? def,
       set(k, v){ settings[k] = v; persist('settings'); },
       list: () => ({ ...settings }),
+    },
+    sync: {
+      tombstones: () => [...(meta.syncTombstones || [])],
+      replaceTombstones(items){ meta.syncTombstones = items; adapter.write(K.meta, meta); },
     },
     restore(data){ // used by backup import
       events = new Map((data.events||[]).map(e => [e.id, normalizeEvent(e)]));
@@ -1673,8 +1683,8 @@ function parseIcsEvents(text){
 }
 function getSyncConfig(){
   const deviceId = DB.settings.get('syncDeviceId', 'device-' + uid().slice(0,8));
-  const supabaseUrl = DB.settings.get('supabaseUrl', DEFAULT_SUPABASE_URL);
-  const supabaseAnonKey = DB.settings.get('supabaseAnonKey', DEFAULT_SUPABASE_ANON_KEY);
+  const supabaseUrl = DB.settings.get('supabaseUrl', '') || DEFAULT_SUPABASE_URL;
+  const supabaseAnonKey = DB.settings.get('supabaseAnonKey', '') || DEFAULT_SUPABASE_ANON_KEY;
   return {
     supabaseUrl,
     supabaseAnonKey,
@@ -1689,81 +1699,96 @@ function getPublicSyncSettings(){
   return Object.fromEntries(Object.entries(settings).filter(([key]) => !SYNC_META_KEYS.has(key)));
 }
 
-function repairSnapshotIds(snapshot){
-  const seenEvents = new Set();
-  const events = (snapshot.events || []).map(event => {
-    const repaired = { ...event };
-    if (!repaired.id || seenEvents.has(repaired.id)) repaired.id = uid();
-    seenEvents.add(repaired.id);
-    return repaired;
-  });
-  const seenLabels = new Set();
-  const labels = (snapshot.labels || []).map(label => {
-    const repaired = { ...label };
-    if (!repaired.id || seenLabels.has(repaired.id)) repaired.id = 'lb_' + uid().slice(0,8);
-    seenLabels.add(repaired.id);
-    return repaired;
-  });
-  return { ...snapshot, events, labels };
+function syncItemKey(item){ return `${item.item_type}:${item.item_id}`; }
+
+function asSyncItem(itemType, payload, deviceId){
+  const updatedAt = payload.updatedAt || payload.createdAt || '1970-01-01T00:00:00.000Z';
+  return { token:'', item_type:itemType, item_id:payload.id, payload, updated_at:updatedAt, deleted:false, device_id:deviceId };
 }
 
-function mergeSyncSnapshots(localSnapshot, remoteSnapshot){
-  const events = new Map();
-  const eventKey = event => {
-    const isOfficial = event.labelId === 'lb_cityu' || event.labelId === 'lb_holiday';
-    return isOfficial
-      ? `official|${event.labelId}|${event.title || ''}|${event.start || ''}|${event.end || ''}`
-      : event.id || event.externalUid || `${event.title || ''}|${event.start || ''}|${event.end || ''}`;
-  };
-  const repairedRemote = repairSnapshotIds(remoteSnapshot);
-  const repairedLocal = repairSnapshotIds(localSnapshot);
-  [...repairedRemote.events, ...repairedLocal.events].forEach(event => {
-    const key = eventKey(event);
-    const current = events.get(key);
-    if (!current || String(event.updatedAt || '') >= String(current.updatedAt || '')) events.set(key, event);
+function localSyncItems(config){
+  const items = [
+    ...DB.events.list().map(event => asSyncItem('event', event, config.deviceId)),
+    ...DB.labels.list().map(label => asSyncItem('label', label, config.deviceId)),
+  ];
+  DB.sync.tombstones().forEach(tombstone => items.push({
+    token:'', item_type:tombstone.kind, item_id:tombstone.id, payload:null,
+    updated_at:tombstone.updatedAt, deleted:true, device_id:config.deviceId,
+  }));
+  return items;
+}
+
+function legacySnapshotItems(snapshot){
+  return [
+    ...(snapshot.events || []).map(event => asSyncItem('event', event, 'legacy-snapshot')),
+    ...(snapshot.labels || []).map(label => asSyncItem('label', label, 'legacy-snapshot')),
+  ];
+}
+
+function newestSyncItem(current, candidate){
+  if (!current) return candidate;
+  const currentTime = Date.parse(current.updated_at || '') || 0;
+  const candidateTime = Date.parse(candidate.updated_at || '') || 0;
+  if (candidateTime !== currentTime) return candidateTime > currentTime ? candidate : current;
+  return String(candidate.device_id || '') >= String(current.device_id || '') ? candidate : current;
+}
+
+function mergeSyncItems(localItems, remoteItems){
+  const merged = new Map();
+  [...remoteItems, ...localItems].forEach(item => {
+    if (!item || !item.item_type || !item.item_id) return;
+    const normalized = { ...item, item_id:String(item.item_id), deleted:!!item.deleted };
+    merged.set(syncItemKey(normalized), newestSyncItem(merged.get(syncItemKey(normalized)), normalized));
   });
-  const labels = new Map();
-  [...repairedRemote.labels, ...repairedLocal.labels].forEach(label => {
-    const key = label.id || `name:${label.name || ''}`;
-    if (!labels.has(key)) labels.set(key, label);
-  });
+  return [...merged.values()];
+}
+
+function snapshotFromSyncItems(items){
   return {
-    events:[...events.values()],
-    labels:[...labels.values()],
-    settings:{ ...(remoteSnapshot.settings || {}), ...(localSnapshot.settings || {}) },
-    meta:{ ...(remoteSnapshot.meta || {}), ...(localSnapshot.meta || {}) },
+    events:items.filter(item => item.item_type === 'event' && !item.deleted && item.payload).map(item => item.payload),
+    labels:items.filter(item => item.item_type === 'label' && !item.deleted && item.payload).map(item => item.payload),
+    settings:getPublicSyncSettings(),
+    meta:{ seeded:true },
   };
+}
+
+function tombstonesFromSyncItems(items){
+  return items.filter(item => item.deleted).map(item => ({ kind:item.item_type, id:item.item_id, updatedAt:item.updated_at }));
 }
 
 async function syncCalendar({ silent = false } = {}){
   const config = getSyncConfig();
-  if (!config.supabaseUrl || !config.supabaseAnonKey) {
+  if (!config.supabaseUrl || !config.supabaseAnonKey || config.supabaseAnonKey === 'PASTE_YOUR_SUPABASE_ANON_KEY_HERE') {
     toast('Sync is enabled but the Supabase URL or anon key is missing.', { icon:'x', timeout:9000 });
     return false;
   }
   try {
     const baseUrl = config.supabaseUrl.replace(/\/$/, '');
-    const headers = { 'apikey': config.supabaseAnonKey, 'Authorization': `Bearer ${config.supabaseAnonKey}`, 'Content-Type': 'application/json', 'Accept': 'application/json' };
-    const localSnapshot = { events:DB.events.list(), labels:DB.labels.list(), settings:getPublicSyncSettings(), meta:{ seeded:true } };
-    const pullResponse = await fetch(`${baseUrl}/rest/v1/quad_sync?token=eq.${encodeURIComponent(config.token)}&select=snapshot`, { method:'GET', headers });
-    if (!pullResponse.ok) throw new Error(`Supabase pull HTTP ${pullResponse.status}: ${await pullResponse.text()}`);
-    const remoteRows = await pullResponse.json();
-    const snapshot = mergeSyncSnapshots(localSnapshot, remoteRows[0]?.snapshot || {});
-    DB.applySnapshot(snapshot);
-    const response = await fetch(`${baseUrl}/rest/v1/quad_sync`, {
-      method: 'POST',
-      headers: { ...headers, 'Prefer':'resolution=merge-duplicates,return=representation' },
-      body: JSON.stringify({ token:config.token, device_id:config.deviceId, snapshot }),
-    });
-    if (!response.ok) throw new Error(`Supabase save HTTP ${response.status}: ${await response.text()}`);
-    const savedRows = await response.json();
-    if (savedRows[0]?.snapshot) {
-      DB.applySnapshot(savedRows[0].snapshot);
-      if (!silent) toast(`Calendar synced: ${savedRows[0].snapshot.events?.length || 0} events shared.`, { icon:'check' });
-    } else if (!silent) {
-      toast('Calendar synced, but Supabase returned no snapshot.', { icon:'x' });
+    const headers = { 'apikey':config.supabaseAnonKey, 'Authorization':`Bearer ${config.supabaseAnonKey}`, 'Content-Type':'application/json', 'Accept':'application/json' };
+    const itemUrl = `${baseUrl}/rest/v1/quad_sync_items?token=eq.${encodeURIComponent(config.token)}&select=item_type,item_id,payload,updated_at,deleted,device_id`;
+    const pullResponse = await fetch(itemUrl, { headers });
+    if (!pullResponse.ok) throw new Error(`Supabase item pull HTTP ${pullResponse.status}: ${await pullResponse.text()}`);
+    let remoteItems = await pullResponse.json();
+    if (!remoteItems.length) {
+      const legacyResponse = await fetch(`${baseUrl}/rest/v1/quad_sync?token=eq.${encodeURIComponent(config.token)}&select=snapshot`, { headers });
+      if (!legacyResponse.ok) throw new Error(`Supabase migration pull HTTP ${legacyResponse.status}: ${await legacyResponse.text()}`);
+      const legacyRows = await legacyResponse.json();
+      remoteItems = legacySnapshotItems(legacyRows[0]?.snapshot || {});
     }
+    const mergedItems = mergeSyncItems(localSyncItems(config), remoteItems);
+    const payload = mergedItems.map(item => ({ ...item, token:config.token }));
+    const saveResponse = await fetch(`${baseUrl}/rest/v1/quad_sync_items?on_conflict=token,item_type,item_id`, {
+      method:'POST', headers:{ ...headers, 'Prefer':'resolution=merge-duplicates,return=minimal' }, body:JSON.stringify(payload),
+    });
+    if (!saveResponse.ok) throw new Error(`Supabase item save HTTP ${saveResponse.status}: ${await saveResponse.text()}`);
+    const finalResponse = await fetch(itemUrl, { headers });
+    if (!finalResponse.ok) throw new Error(`Supabase final pull HTTP ${finalResponse.status}: ${await finalResponse.text()}`);
+    const finalItems = await finalResponse.json();
+    const finalSnapshot = snapshotFromSyncItems(finalItems);
+    DB.applySnapshot(finalSnapshot);
+    DB.sync.replaceTombstones(tombstonesFromSyncItems(finalItems));
     DB.settings.set('syncLastSync', new Date().toISOString());
+    if (!silent) toast(`Calendar synced: ${finalSnapshot.events.length} events shared.`, { icon:'check' });
     return true;
   } catch (err) {
     console.error('Sync failed:', err);
@@ -1785,8 +1810,8 @@ function openSyncDialog(){
     </div>
     <div class="m-foot"><span class="spacer"></span><button class="btn" id="syncTest">Sync now</button><button class="btn btn-primary" id="syncSave">Save</button></div>`, { width:440 });
   el.querySelector('#syncSave').onclick = () => {
-    const supabaseUrl = el.querySelector('#supabaseUrl').value.trim();
-    const supabaseAnonKey = el.querySelector('#supabaseAnonKey').value.trim();
+    const supabaseUrl = el.querySelector('#supabaseUrl').value.trim() || DEFAULT_SUPABASE_URL;
+    const supabaseAnonKey = el.querySelector('#supabaseAnonKey').value.trim() || DEFAULT_SUPABASE_ANON_KEY;
     const token = el.querySelector('#syncToken').value.trim() || 'shared-cityu-calendar';
     const deviceId = el.querySelector('#syncDeviceId').value.trim() || config.deviceId;
     const enabled = el.querySelector('#syncEnabled').checked;
@@ -1800,8 +1825,8 @@ function openSyncDialog(){
     if (enabled) setTimeout(() => syncCalendar({ silent:false }), 100);
   };
   el.querySelector('#syncTest').onclick = async () => {
-    const supabaseUrl = el.querySelector('#supabaseUrl').value.trim();
-    const supabaseAnonKey = el.querySelector('#supabaseAnonKey').value.trim();
+    const supabaseUrl = el.querySelector('#supabaseUrl').value.trim() || DEFAULT_SUPABASE_URL;
+    const supabaseAnonKey = el.querySelector('#supabaseAnonKey').value.trim() || DEFAULT_SUPABASE_ANON_KEY;
     const token = el.querySelector('#syncToken').value.trim() || 'shared-cityu-calendar';
     const deviceId = el.querySelector('#syncDeviceId').value.trim() || config.deviceId;
     DB.settings.set('supabaseUrl', supabaseUrl);
