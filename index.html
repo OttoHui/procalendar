@@ -538,8 +538,8 @@ const I = (n,s=16) => `<svg class="ic" style="width:${s}px;height:${s}px" viewBo
 
 /* ─── 3. DB MODULE — the local "database" ─────────────────────
    Storage adapter pattern: everything goes through _read/_write.
-   To move to IndexedDB or a local server (SQLite + Express),
-   replace only the two adapter functions and keep the same API:
+  Local persistence uses IndexedDB with a localStorage fallback.
+  Cloud sync uses the Supabase REST API:
     DB.events.list/get/create/update/remove
     DB.labels.*  ·  DB.settings.get/set                       */
 const SYNC_META_KEYS = new Set(['supabaseUrl','supabaseAnonKey','syncToken','syncDeviceId','syncEnabled','syncLastSync']);
@@ -611,7 +611,6 @@ const DB = (() => {
     if (!labels.has('lb_cityu')) labels.set('lb_cityu', { id:'lb_cityu', name:'CityU Academic', color:'#9A61A8', locked:true });
     if (!settings.syncDeviceId) settings.syncDeviceId = 'device-' + uid().slice(0,8);
     if (!settings.syncToken) settings.syncToken = 'shared-cityu-calendar';
-    if (!settings.syncEnabled && settings.syncEndpoint) settings.syncEnabled = true;
     if (!meta.seeded){
       DEFAULT_LABELS.forEach(l => labels.set(l.id, {...l}));
       SEED_HOLIDAYS.forEach(([d, name]) => addSeedEvent(name, d, d, 'lb_holiday'));
