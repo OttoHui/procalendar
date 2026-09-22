@@ -49,7 +49,7 @@ Use the steps below whenever you publish a new version and want to test the sync
    SELECT token, device_id, updated_at, snapshot->'events' AS events
    FROM public.quad_sync;
    ```
-13. If a sync happens at the same time as another device update, the app pulls the newer row and retries the merge. If it reports a conflict, sync that device once more; do not erase the database.
+13. If a sync happens at the same time as another device update, the app pulls the newer row and retries the merge automatically. Only if three consecutive writes race should a sync error appear; do not erase the database in that case, wait briefly and sync again.
 14. If the app still shows old data, close the tab, clear site data again, and repeat from step 1.
 
 Important: do not test with old calendar entries or older names from previous experiments, because stale local browser data can make a clean test look broken. Use short unique names only.
