@@ -1795,26 +1795,30 @@ async function syncCalendar({ silent = false } = {}){
     let savedRows = [];
     for (let attempt = 0; attempt < 3; attempt++) {
       const nextUpdatedAt = new Date().toISOString();
-      const saveUrl = remoteRow
-        ? `${baseUrl}/rest/v1/quad_sync?token=eq.${encodeURIComponent(config.token)}&updated_at=eq.${encodeURIComponent(remoteRow.updated_at)}`
-        : `${baseUrl}/rest/v1/quad_sync`;
-      const response = await fetch(saveUrl, {
-        method: remoteRow ? 'PATCH' : 'POST',
-        headers: { ...headers, 'Prefer':'return=representation' },
+      const response = await fetch(`${baseUrl}/rest/v1/quad_sync?on_conflict=token`, {
+        method: 'POST',
+        headers: { ...headers, 'Prefer':'resolution=merge-duplicates,return=representation' },
         body: JSON.stringify({ token:config.token, device_id:config.deviceId, snapshot, updated_at:nextUpdatedAt }),
       });
       const responseText = await response.text();
-      if (!response.ok && !(response.status === 409 && !remoteRow)) {
-        throw new Error(`Supabase save HTTP ${response.status}: ${responseText}`);
+      if (!response.ok) {
+        if (response.status !== 409) {
+          throw new Error(`Supabase save HTTP ${response.status}: ${responseText}`);
+        }
+        savedRows = [];
+      } else {
+        savedRows = JSON.parse(responseText || '[]');
       }
-      savedRows = response.ok ? JSON.parse(responseText || '[]') : [];
-      if (savedRows.length || (!remoteRow && response.ok)) break;
+      if (savedRows.length) break;
       const retryResponse = await fetch(`${baseUrl}/rest/v1/quad_sync?token=eq.${encodeURIComponent(config.token)}&select=snapshot,updated_at`, { method:'GET', headers });
       if (!retryResponse.ok) throw new Error(`Supabase retry pull HTTP ${retryResponse.status}: ${await retryResponse.text()}`);
       const retryRows = await retryResponse.json();
       remoteRow = retryRows[0] || null;
       snapshot = mergeSyncSnapshots(localSnapshot, remoteRow?.snapshot || {});
       DB.applySnapshot(snapshot);
+      if (attempt === 2) {
+        throw new Error('Supabase upsert did not return the saved calendar row.');
+      }
     }
     if (!savedRows.length) throw new Error('Supabase save conflicted with a newer device update. Please sync again.');
     if (savedRows[0]?.snapshot) {
