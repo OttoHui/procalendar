@@ -543,6 +543,8 @@ const I = (n,s=16) => `<svg class="ic" style="width:${s}px;height:${s}px" viewBo
     DB.events.list/get/create/update/remove
     DB.labels.*  ·  DB.settings.get/set                       */
 const SYNC_META_KEYS = new Set(['syncEndpoint','supabaseUrl','supabaseAnonKey','syncToken','syncDeviceId','syncEnabled','syncLastSync']);
+const DEFAULT_SUPABASE_URL = 'https://ykyeqqhtppqswqjftrov.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'PASTE_YOUR_SUPABASE_ANON_KEY_HERE';
 
 const DB = (() => {
   const NS = 'quad.v1';
@@ -610,6 +612,8 @@ const DB = (() => {
   function seedIfNeeded(){
     if (!labels.has('lb_cityu')) labels.set('lb_cityu', { id:'lb_cityu', name:'CityU Academic', color:'#9A61A8', locked:true });
     delete settings.syncEndpoint;
+    if (!settings.supabaseUrl) settings.supabaseUrl = DEFAULT_SUPABASE_URL;
+    if (!settings.supabaseAnonKey) settings.supabaseAnonKey = DEFAULT_SUPABASE_ANON_KEY;
     if (!settings.syncDeviceId) settings.syncDeviceId = 'device-' + uid().slice(0,8);
     if (!settings.syncToken) settings.syncToken = 'shared-cityu-calendar';
     if (!meta.seeded){
@@ -1669,9 +1673,11 @@ function parseIcsEvents(text){
 }
 function getSyncConfig(){
   const deviceId = DB.settings.get('syncDeviceId', 'device-' + uid().slice(0,8));
+  const supabaseUrl = DB.settings.get('supabaseUrl', DEFAULT_SUPABASE_URL);
+  const supabaseAnonKey = DB.settings.get('supabaseAnonKey', DEFAULT_SUPABASE_ANON_KEY);
   return {
-    supabaseUrl: DB.settings.get('supabaseUrl', ''),
-    supabaseAnonKey: DB.settings.get('supabaseAnonKey', ''),
+    supabaseUrl,
+    supabaseAnonKey,
     token: DB.settings.get('syncToken', 'shared-cityu-calendar'),
     deviceId,
     enabled: !!DB.settings.get('syncEnabled', false),
