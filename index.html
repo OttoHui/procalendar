@@ -545,6 +545,25 @@ const I = (n,s=16) => `<svg class="ic" style="width:${s}px;height:${s}px" viewBo
 const SYNC_META_KEYS = new Set(['syncEndpoint','supabaseUrl','supabaseAnonKey','syncToken','syncDeviceId','syncEnabled','syncLastSync']);
 const DEFAULT_SUPABASE_URL = 'https://ykyeqqhtppqswqjftrov.supabase.co';
 const DEFAULT_SUPABASE_ANON_KEY = 'PASTE_YOUR_SUPABASE_ANON_KEY_HERE';
+const APP_VERSION = 'quad-v3-sync-safe-2026-09';
+const APP_VERSION_KEY = 'quad.app.version';
+
+if (localStorage.getItem(APP_VERSION_KEY) !== APP_VERSION) {
+  try {
+    localStorage.clear();
+  } catch (e) {}
+  try {
+    if ('indexedDB' in window) {
+      indexedDB.databases?.().then(list => Promise.all(list.map(db => new Promise(res => {
+        const req = indexedDB.deleteDatabase(db.name);
+        req.onsuccess = () => res();
+        req.onerror = () => res();
+        req.onblocked = () => res();
+      }))));
+    }
+  } catch (e) {}
+  localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
+}
 
 const DB = (() => {
   const NS = 'quad.v1';
@@ -712,7 +731,21 @@ const DB = (() => {
       meta = { ...meta, ...(data.meta || {}), seeded:true };
       persist('events'); persist('labels'); persist('settings'); adapter.write(K.meta, meta); emit('all');
     },
-    wipe(){ ['events','labels','settings','meta'].forEach(k => adapter.drop(K[k])); },
+    wipe(){
+      ['events','labels','settings','meta'].forEach(k => adapter.drop(K[k]));
+      try { localStorage.removeItem(APP_VERSION_KEY); } catch (e) {}
+      try {
+        if ('indexedDB' in window) {
+          indexedDB.databases?.().then(list => Promise.all(list.map(db => new Promise(res => {
+            if (!db.name || !db.name.startsWith('quad')) return res();
+            const req = indexedDB.deleteDatabase(db.name);
+            req.onsuccess = () => res();
+            req.onerror = () => res();
+            req.onblocked = () => res();
+          }))));
+        }
+      } catch (e) {}
+    },
   };
   loadLocal();
   const ready = hydrate();
@@ -1980,6 +2013,12 @@ document.addEventListener('keydown', e => {
 
 /* boot */
 DB.ready.then(() => {
+  if (localStorage.getItem(APP_VERSION_KEY) !== APP_VERSION) {
+    DB.wipe();
+    localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
+    location.reload();
+    return;
+  }
   state.view = DB.settings.get('view', 'month');
   state.date = parseDate(DB.settings.get('date', toDateStr(new Date())));
   state.hidden = new Set(DB.settings.get('hidden', []));
