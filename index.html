@@ -691,16 +691,19 @@ const DB = (() => {
       persist('events'); persist('labels'); emit('all');
     },
     applySnapshot(data){
-      const nextEvents = (data.events || []).map(e => [e.id, normalizeEvent(e)]);
-      const nextLabels = (data.labels || []).map(l => [l.id, { ...l, id:l.id || 'lb_'+uid().slice(0,8) }]);
+      if (!data || typeof data !== 'object' || !Array.isArray(data.events) || !Array.isArray(data.labels)) {
+        throw new Error('Invalid calendar snapshot: events and labels must be arrays.');
+      }
+      const invalidEvent = data.events.find(e => !e || typeof e !== 'object' || typeof e.id !== 'string' || !e.id);
+      const invalidLabel = data.labels.find(l => !l || typeof l !== 'object' || typeof l.id !== 'string' || !l.id);
+      if (invalidEvent || invalidLabel) throw new Error('Invalid calendar snapshot: every event and label needs an id.');
+      const nextEvents = data.events.map(e => [e.id, normalizeEvent(e)]);
+      const nextLabels = data.labels.map(l => [l.id, l]);
       events = new Map(nextEvents);
       labels = new Map(nextLabels);
       if (!labels.has('lb_holiday')) labels.set('lb_holiday', { id:'lb_holiday', name:'Holidays', color:'#6E705C', locked:true });
-      const incomingSettings = data.settings || {};
-      settings = { ...settings, ...incomingSettings };
-      for (const key of SYNC_META_KEYS){ if (Object.prototype.hasOwnProperty.call(settings, key)) continue; }
-      const localSync = { ...Object.fromEntries([...SYNC_META_KEYS].map(k => [k, settings[k]])) };
-      settings = { ...incomingSettings, ...localSync, ...settings };
+      const localSync = Object.fromEntries([...SYNC_META_KEYS].filter(key => settings[key] !== undefined).map(key => [key, settings[key]]));
+      settings = { ...(data.settings || {}), ...settings, ...localSync };
       meta = { ...meta, ...(data.meta || {}), seeded:true };
       persist('events'); persist('labels'); persist('settings'); adapter.write(K.meta, meta); emit('all');
     },
@@ -1703,7 +1706,7 @@ function mergeSyncSnapshots(localSnapshot, remoteSnapshot){
 async function syncCalendar({ silent = false } = {}){
   const config = getSyncConfig();
   if (!config.supabaseUrl || !config.supabaseAnonKey) {
-    if (!silent) toast('Add your Supabase URL and anon key first.', { icon:'x' });
+    toast('Sync is enabled but the Supabase URL or anon key is missing.', { icon:'x', timeout:9000 });
     return false;
   }
   try {
