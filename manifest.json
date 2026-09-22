@@ -1,0 +1,10 @@
+{
+  "name": "Quad Four-Year Planner",
+  "short_name": "Quad",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#F4F1E9",
+  "theme_color": "#221D16",
+  "description": "A private four-year university calendar and class planner.",
+  "icons": []
+}

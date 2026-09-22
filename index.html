@@ -1,0 +1,1995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="theme-color" content="#221D16"/>
+<title>Quad — Four-Year Planner</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,400..600&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   QUAD — design tokens & base
+   ============================================================ */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F4F1E9; --panel:#FCFAF4; --panel2:#F6F3EA;
+  --ink:#221D16; --ink2:#6F675A; --ink3:#9C9280;
+  --line:#E6DFD0; --line2:#D9D1BE;
+  --accent:#B5432B; --wine:#8C2F39;
+  --hourH:56px;
+  --shadow-sm:0 1px 2px rgba(40,32,20,.07);
+  --shadow-md:0 2px 6px rgba(40,32,20,.06),0 18px 44px rgba(40,32,20,.12);
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Instrument Sans',sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;font-size:14px}
+button{font-family:inherit}
+.ic{width:16px;height:16px;flex:none}
+::selection{background:rgba(181,67,43,.22)}
+@keyframes fade{from{opacity:0}}
+@keyframes pop{from{opacity:0;transform:scale(.97) translateY(4px)}}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}}
+@keyframes tin{from{opacity:0;transform:translateY(10px)}}
+
+/* ---------- app shell ---------- */
+#app{display:flex;height:100dvh}
+#sidebar{width:274px;flex:none;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto;padding-bottom:14px}
+#main{flex:1;min-width:0;display:flex;flex-direction:column}
+
+/* ---------- brand ---------- */
+.brand{display:flex;align-items:center;gap:11px;padding:18px 18px 14px}
+.brand-mark{width:34px;height:34px;border:1.5px solid var(--ink);border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:Fraunces;font-style:italic;font-weight:600;font-size:19px;background:var(--panel)}
+.brand-name{font-family:Fraunces;font-weight:600;font-size:18px;line-height:1.1}
+.brand-sub{font:500 10.5px 'IBM Plex Mono';letter-spacing:.1em;text-transform:uppercase;color:var(--ink3)}
+
+/* ---------- buttons ---------- */
+.btn{display:inline-flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;border:1px solid var(--line2);background:var(--panel);color:var(--ink);padding:9px 14px;border-radius:9px;cursor:pointer;transition:border-color .15s,background .15s}
+.btn:hover{border-color:var(--ink3)}
+.btn-primary{background:var(--ink);border-color:var(--ink);color:#FBF8F1;justify-content:center;padding:11px 14px}
+.btn-primary:hover{background:#39311F;border-color:#39311F}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border:1px solid transparent;background:none;border-radius:9px;color:var(--ink2);cursor:pointer}
+.icon-btn:hover{background:var(--panel2);color:var(--ink)}
+#newBtn{margin:2px 16px 14px}
+
+/* ---------- sidebar ---------- */
+.sb{padding:4px 16px 14px}
+.sb-head{display:flex;align-items:center;justify-content:space-between;padding:6px 2px 8px}
+.sb-title{font:600 10.5px 'IBM Plex Mono';letter-spacing:.14em;text-transform:uppercase;color:var(--ink3)}
+.mini-head{display:flex;align-items:center;justify-content:space-between;padding:0 2px 8px}
+.mini-title{font:600 13px 'Instrument Sans'}
+.mini-grid{display:grid;grid-template-columns:repeat(7,1fr);text-align:center}
+.mini-wd{font:600 8.5px 'IBM Plex Mono';letter-spacing:.08em;color:var(--ink3);padding:5px 0 6px}
+.mini-d{position:relative;height:27px;display:flex;align-items:center;justify-content:center;font:500 11.5px 'IBM Plex Mono';color:var(--ink2);border-radius:50%;cursor:pointer}
+.mini-d:hover{background:var(--panel2)}
+.mini-d.on{background:var(--ink);color:var(--panel)}
+.mini-d.today{box-shadow:inset 0 0 0 1.5px var(--accent);color:var(--accent)}
+.mini-d.today.on{box-shadow:none;background:var(--accent);color:#FDF9F0}
+.mini-dots{position:absolute;bottom:2px;display:flex;gap:2px;left:0;right:0;justify-content:center}
+.mini-dot{width:3.5px;height:3.5px;border-radius:50%;background:var(--c)}
+.mini-d.on .mini-dot{background:var(--panel)}
+.lrow{display:flex;align-items:center;gap:9px;width:100%;padding:6px 8px;border:0;background:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--ink);text-align:left}
+.lrow:hover{background:var(--panel2)}
+.ldot{width:16px;height:16px;border-radius:50%;background:var(--c);flex:none;display:flex;align-items:center;justify-content:center}
+.ldot .ic{width:10px;height:10px;color:#FFFDF6;display:none}
+.ldot.off{background:transparent;box-shadow:inset 0 0 0 1.5px var(--c)}
+.ldot.off .ic{display:none}
+.ldot:not(.off) .ic{display:block}
+.lrow.off .lname{color:var(--ink3)}
+.lname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lcount{font:500 11px 'IBM Plex Mono';color:var(--ink3)}
+.up-row{display:flex;gap:10px;padding:7px 8px;border-radius:9px;cursor:pointer;align-items:center;width:100%;border:0;background:none;text-align:left}
+.up-row:hover{background:var(--panel2)}
+.up-date{width:36px;flex:none;text-align:center;border:1px solid var(--line2);border-radius:8px;padding:3px 0;background:var(--panel)}
+.up-date b{display:block;font-family:Fraunces;font-weight:600;font-size:16px;line-height:1.1}
+.up-date span{font:600 8px 'IBM Plex Mono';letter-spacing:.06em;color:var(--ink3)}
+.up-meta{min-width:0;flex:1}
+.up-t{font-weight:600;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px}
+.up-dot{width:7px;height:7px;border-radius:50%;background:var(--c);flex:none}
+.up-s{font:500 10.5px 'IBM Plex Mono';color:var(--ink3);margin-top:1px}
+.sb-foot{margin-top:auto;padding:16px 18px 0;font-size:11px;color:var(--ink3);line-height:1.5}
+.empty-note{font-size:12px;color:var(--ink3);padding:6px 8px;line-height:1.5}
+
+/* ---------- top bar & toolbar ---------- */
+#topbar{height:56px;flex:none;display:flex;align-items:center;gap:8px;padding:0 14px;border-bottom:1px solid var(--line);background:var(--panel)}
+.search{display:flex;align-items:center;gap:8px;border:1px solid var(--line2);border-radius:9px;padding:0 10px;height:36px;width:min(360px,42vw);background:var(--panel2);color:var(--ink3)}
+.search:focus-within{border-color:var(--ink3);background:var(--panel)}
+.search input{flex:1;border:0;outline:0;background:none;font:500 13px 'Instrument Sans';color:var(--ink)}
+.search input::placeholder{color:var(--ink3)}
+#toolbar{height:56px;flex:none;display:flex;align-items:center;gap:10px;padding:0 18px;border-bottom:1px solid var(--line2);box-shadow:0 4px 0 -3px var(--line)}
+#periodLabel{font-family:Fraunces;font-weight:600;font-size:24px;letter-spacing:-.01em;min-width:225px;white-space:nowrap}
+.navpair{display:flex;gap:2px}
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:3px;gap:2px}
+.seg button{border:0;background:transparent;font-size:12.5px;font-weight:600;padding:6px 13px;border-radius:7px;color:var(--ink2);cursor:pointer}
+.seg button.on{background:var(--panel);color:var(--ink);box-shadow:var(--shadow-sm);border:1px solid var(--line)}
+#viewroot{flex:1;min-height:0;display:flex;flex-direction:column}
+.viewwrap{flex:1;min-height:0;display:flex;flex-direction:column;animation:rise .18s ease}
+#sbToggle{display:none}
+
+/* ---------- month view ---------- */
+.mhead{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid var(--line);background:var(--panel)}
+.mhead span{padding:8px 10px;font:600 10px 'IBM Plex Mono';letter-spacing:.14em;color:var(--ink3)}
+.mgrid{flex:1;display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(6,1fr);min-height:0;background:var(--panel);user-select:none}
+.mcell{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:5px 5px 3px;display:flex;flex-direction:column;gap:3px;min-height:0;cursor:pointer;overflow:hidden}
+.mcell.period-span{background:linear-gradient(to bottom,rgba(154,97,168,.055),transparent 55%)}
+.mperiod{position:absolute;left:6px;right:6px;bottom:3px;height:3px;border:0;border-radius:0;background:var(--c);opacity:.35;cursor:pointer}
+.mperiod.start{border-radius:3px 0 0 3px}
+.mperiod.end{border-radius:0 3px 3px 0}
+.mperiod.start.end{border-radius:3px}
+.mcell{position:relative}
+.mcell:nth-child(7n){border-right:0}
+.mcell:hover{background:#F8F5EC}
+.mcell.other .mnum{color:var(--ink3)}
+.mnum{font:500 12.5px 'IBM Plex Mono';width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%}
+.mcell.today .mnum{background:var(--accent);color:#FDF9F0}
+.mchips{display:flex;flex-direction:column;gap:2px;min-height:0;overflow:hidden}
+.more{font:600 10.5px 'IBM Plex Mono';color:var(--ink2);padding:2px 5px;border-radius:5px;border:0;background:none;cursor:pointer;text-align:left}
+.more:hover{color:var(--ink);background:var(--panel2)}
+
+/* ---------- event chips ---------- */
+.chip{display:flex;align-items:center;gap:5px;min-width:0;height:20px;padding:0 6px 0 5px;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden;border:0;text-align:left;background:color-mix(in srgb,var(--c) 13%,#FFFDF8);color:color-mix(in srgb,var(--c) 72%,#221D16);box-shadow:inset 3px 0 0 var(--c)}
+.chip:hover{box-shadow:inset 3px 0 0 var(--c),var(--shadow-sm)}
+.chip time{font:500 10px 'IBM Plex Mono';opacity:.8;flex:none}
+.chip .ct{overflow:hidden;text-overflow:ellipsis}
+.chip.cont-l{border-top-left-radius:2px;border-bottom-left-radius:2px}
+.chip.cont-r{border-top-right-radius:2px;border-bottom-right-radius:2px}
+.chip.period-end{box-shadow:inset -3px 0 0 var(--c)}
+.chip.period-end:hover{box-shadow:inset -3px 0 0 var(--c),var(--shadow-sm)}
+.chip.period-chip{border-radius:3px;background:color-mix(in srgb,var(--c) 9%,#FFFDF8);box-shadow:inset 3px 0 0 var(--c)}
+.chip.period-chip.period-end{box-shadow:inset -3px 0 0 var(--c)}
+.chip.period-chip:hover{box-shadow:inset 3px 0 0 var(--c),var(--shadow-sm)}
+.chip.period-chip.period-end:hover{box-shadow:inset -3px 0 0 var(--c),var(--shadow-sm)}
+.chip.holiday{background:transparent;box-shadow:none;color:#6E705C;font-family:Fraunces;font-style:italic;font-weight:500;padding-left:14px;position:relative}
+.chip.holiday::before{content:'';position:absolute;left:6px;top:50%;transform:translateY(-50%);width:5px;height:5px;border-radius:50%;background:#6E705C;opacity:.6}
+
+/* ---------- week view ---------- */
+.wk-scroll{flex:1;overflow-y:auto;min-height:0;background:var(--panel);user-select:none}
+.wk-head{position:sticky;top:0;z-index:7;background:var(--panel);height:46px;display:flex;border-bottom:1px solid var(--line)}
+.wk-gut{width:60px;flex:none}
+.whd{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.whd .wkd{font:600 9.5px 'IBM Plex Mono';letter-spacing:.14em;color:var(--ink3)}
+.whd .wnum{font-family:Fraunces;font-weight:600;font-size:18px;line-height:1;width:29px;height:29px;display:flex;align-items:center;justify-content:center;border-radius:50%}
+.whd.today .wnum{background:var(--accent);color:#FDF9F0}
+.wk-allday{position:sticky;top:46px;z-index:6;background:var(--panel);border-bottom:1px solid var(--line);display:flex;min-height:34px}
+.wk-allday .wk-gut{display:flex;align-items:center;justify-content:flex-end;padding-right:9px;font:600 8.5px 'IBM Plex Mono';letter-spacing:.08em;color:var(--ink3)}
+.wcol-ad{flex:1;padding:2px 3px;display:flex;flex-direction:column;gap:2px;border-right:1px solid var(--line);cursor:pointer}
+.wcol-ad:nth-child(8){border-right:0}
+.wk-body{display:flex;position:relative;height:calc(var(--hourH)*24)}
+.wk-hours{width:60px;flex:none;position:relative}
+.wk-hours span{position:absolute;right:9px;transform:translateY(-50%);font:500 10.5px 'IBM Plex Mono';color:var(--ink3)}
+.wk-cols{flex:1;display:flex;position:relative;background-image:
+  repeating-linear-gradient(to bottom,var(--line) 0 1px,transparent 1px var(--hourH)),
+  repeating-linear-gradient(to bottom,var(--line2) 0 1px,transparent 1px calc(var(--hourH)/2))}
+.wcol{flex:1;position:relative;border-right:1px solid var(--line)}
+.wcol:last-child{border-right:0}
+.wblock{position:absolute;border-left:3px solid var(--c);background:color-mix(in srgb,var(--c) 14%,#FFFDF8);color:color-mix(in srgb,var(--c) 72%,#221D16);border-radius:6px;padding:3px 6px;font-size:11.5px;font-weight:600;overflow:hidden;cursor:grab;line-height:1.3}
+.wblock:active{cursor:grabbing}
+.wblock:hover{box-shadow:var(--shadow-sm)}
+.wblock .wb-t{display:block;font:500 9.5px 'IBM Plex Mono';opacity:.85}
+.wghost{position:absolute;left:2px;right:4px;background:rgba(181,67,43,.10);border:1px dashed var(--accent);border-radius:6px;pointer-events:none;z-index:8;padding:3px 7px;font:500 10.5px 'IBM Plex Mono';color:var(--accent)}
+.nowline{position:absolute;left:0;right:0;height:0;border-top:2px solid var(--accent);z-index:5;pointer-events:none}
+.nowline::before{content:'';position:absolute;left:-1px;top:-4px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.npill{position:absolute;left:5px;top:-9px;background:var(--accent);color:#FDF9F0;font:500 9.5px 'IBM Plex Mono';padding:1px 5px;border-radius:4px}
+
+/* ---------- agenda view ---------- */
+.agenda{flex:1;overflow-y:auto;background:var(--panel);padding:6px 26px 50px;min-height:0}
+.ag-head{position:sticky;top:0;background:var(--panel);display:flex;align-items:baseline;gap:10px;padding:16px 2px 9px;border-bottom:1px solid var(--line);z-index:2}
+.ag-head .rel{font:600 10px 'IBM Plex Mono';letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.ag-head .dstr{font-family:Fraunces;font-weight:600;font-size:19px}
+.ag-row{display:flex;align-items:center;gap:14px;padding:10px 8px;border-bottom:1px solid var(--line);cursor:pointer;border-radius:9px;border-bottom-left-radius:0;border-bottom-right-radius:0}
+.ag-row:hover{background:var(--panel2)}
+.ag-time{width:104px;flex:none;font:500 11.5px 'IBM Plex Mono';color:var(--ink2)}
+.ag-main{min-width:0;flex:1;display:flex;align-items:center;gap:9px}
+.ag-dot{width:8px;height:8px;border-radius:50%;background:var(--c);flex:none}
+.ag-title{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ag-loc{color:var(--ink3);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ag-tag{font:500 10.5px 'IBM Plex Mono';color:color-mix(in srgb,var(--c) 75%,#221D16);background:color-mix(in srgb,var(--c) 12%,#FFFDF8);padding:2px 8px;border-radius:20px;flex:none}
+.ag-empty{text-align:center;padding:90px 20px;color:var(--ink3)}
+.ag-empty .ic{width:34px;height:34px;margin-bottom:14px;opacity:.5}
+.ag-empty p{font-family:Fraunces;font-size:17px;color:var(--ink2)}
+.ag-empty small{display:block;margin-top:8px;font-size:12.5px}
+
+/* ---------- class schedule ---------- */
+.schedule{flex:1;overflow:auto;background:var(--panel);padding:18px 22px 40px}
+.schedule-bar{display:flex;align-items:center;gap:10px;padding:0 2px 16px;border-bottom:1px solid var(--line)}
+.schedule-bar h2{font-family:Fraunces;font-size:22px;margin-right:auto}
+.schedule-bar select{width:auto}
+.schedule-grid{display:grid;grid-template-columns:repeat(7,minmax(125px,1fr));min-width:880px;border-left:1px solid var(--line);border-top:1px solid var(--line);margin-top:18px}
+.schedule-day{min-height:360px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--panel2)}
+.schedule-day-head{padding:10px 8px;background:var(--panel);border-bottom:1px solid var(--line);font:600 10px 'IBM Plex Mono';letter-spacing:.1em;color:var(--ink3);text-align:center}
+.class-list{display:flex;flex-direction:column;gap:7px;padding:8px}
+.class-card{border:0;border-left:3px solid var(--c);border-radius:6px;background:color-mix(in srgb,var(--c) 13%,#FFFDF8);padding:8px;text-align:left;color:var(--ink);cursor:pointer;line-height:1.3}
+.class-card:hover{box-shadow:var(--shadow-sm)}
+.class-code{font-weight:700;font-size:12.5px}
+.class-time,.class-room{display:block;margin-top:3px;font:500 10.5px 'IBM Plex Mono';color:var(--ink2)}
+.schedule-empty{text-align:center;padding:70px 20px;color:var(--ink3);grid-column:1/-1}
+.schedule-empty p{font-family:Fraunces;font-size:18px;color:var(--ink2);margin-bottom:8px}
+@media (max-width:920px){.schedule{padding-inline:12px}.schedule-bar{flex-wrap:wrap}.schedule-bar h2{width:100%;margin-right:0}}
+
+/* ---------- modals & forms ---------- */
+.scrim{position:fixed;inset:0;background:rgba(30,24,15,.44);display:flex;align-items:center;justify-content:center;z-index:60;animation:fade .18s}
+.modal{background:var(--panel);border:1px solid var(--line2);border-radius:16px;box-shadow:var(--shadow-md);max-height:min(88vh,780px);display:flex;flex-direction:column;animation:pop .2s;padding:22px 24px 16px}
+.modal-body{overflow-y:auto;min-height:0;margin:0 -8px;padding:0 8px}
+.m-title{font-family:Fraunces;font-weight:600;font-size:21px;margin-bottom:14px}
+.e-title{width:100%;border:0;border-bottom:1px solid var(--line);outline:0;background:none;font-family:Fraunces;font-size:21px;font-weight:600;color:var(--ink);padding:2px 0 10px;margin-bottom:8px}
+.e-title::placeholder{color:var(--ink3);font-weight:500}
+.f-row{display:flex;gap:10px;padding:8px 0;align-items:flex-start}
+.f-ic{width:17px;color:var(--ink3);margin-top:9px;flex:none}
+.f-main{flex:1;min-width:0}
+.f-lab{font:600 10px 'IBM Plex Mono';letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:5px;display:block}
+.inp{font:500 13.5px 'Instrument Sans';color:var(--ink);background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:7px 9px;outline:0;transition:.15s;color-scheme:light}
+.inp:focus{border-color:var(--ink3);box-shadow:0 0 0 3px rgba(34,29,22,.07)}
+.inp-full{width:100%}
+.dt-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.switch{position:relative;width:36px;height:21px;border-radius:20px;background:var(--line2);transition:.18s;cursor:pointer;border:0;flex:none;align-self:center}
+.switch::after{content:'';position:absolute;top:2.5px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:var(--shadow-sm);transition:.18s}
+.switch.on{background:var(--pine,#2F6B5E)}
+.switch.on::after{left:17px}
+.sw-row{display:flex;align-items:center;gap:10px;font-weight:600;font-size:13.5px}
+.pills{display:flex;gap:5px;margin-top:7px;flex-wrap:wrap}
+.pill{border:1px solid var(--line2);background:var(--panel);border-radius:20px;font:600 11.5px 'Instrument Sans';padding:4px 10px;cursor:pointer;color:var(--ink2)}
+.pill.on{background:var(--ink);border-color:var(--ink);color:var(--panel)}
+.sw{width:25px;height:25px;border-radius:50%;background:var(--c);border:2px solid transparent;cursor:pointer;box-shadow:inset 0 0 0 2px var(--panel)}
+.sw.on{border-color:var(--ink)}
+.sw.none{background:var(--panel2);box-shadow:inset 0 0 0 1px var(--line2)}
+.sws{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.rem-row{display:flex;gap:7px;margin-bottom:7px;align-items:center}
+.rem-row select{flex:1}
+.rem-x{border:0;background:none;color:var(--ink3);cursor:pointer;padding:4px;border-radius:6px}
+.rem-x:hover{color:var(--wine);background:var(--panel2)}
+.link-btn{border:0;background:none;color:var(--ink2);font:600 12px 'Instrument Sans';cursor:pointer;padding:4px 0;text-decoration:underline;text-underline-offset:3px}
+.link-btn:hover{color:var(--ink)}
+textarea.inp{resize:vertical;min-height:64px;line-height:1.5;font-family:inherit}
+.m-foot{display:flex;gap:9px;padding-top:16px;align-items:center}
+.m-foot .spacer{flex:1}
+.btn-ghost-danger{border-color:transparent;background:none;color:var(--wine)}
+.btn-ghost-danger:hover{border-color:var(--wine);background:#F7ECEC}
+.d-title{font-family:Fraunces;font-weight:600;font-size:23px;line-height:1.25;margin-bottom:4px;padding-right:30px}
+.d-row{display:flex;gap:10px;padding:7px 0;font-size:13.5px;color:var(--ink2);align-items:flex-start}
+.d-row .ic{width:15px;margin-top:2px;color:var(--ink3)}
+.d-notes{margin-top:6px;padding:10px 12px;background:var(--panel2);border-radius:9px;font-size:13px;line-height:1.6;white-space:pre-wrap;color:var(--ink)}
+.d-tag{display:inline-flex;align-items:center;gap:6px;font:600 11px 'IBM Plex Mono';color:color-mix(in srgb,var(--c) 75%,#221D16);background:color-mix(in srgb,var(--c) 12%,#FFFDF8);padding:3px 10px;border-radius:20px;margin-bottom:10px}
+.d-tag i{width:7px;height:7px;border-radius:50%;background:var(--c)}
+.x-close{position:absolute;top:14px;right:14px}
+.modal{position:relative}
+
+/* ---------- popover & menus ---------- */
+.pop{position:fixed;z-index:130;background:var(--panel);border:1px solid var(--line2);border-radius:12px;box-shadow:var(--shadow-md);padding:6px;animation:pop .15s;min-width:210px;max-width:320px}
+.pop-item{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:0;background:none;border-radius:8px;font-size:13px;font-weight:500;color:var(--ink);cursor:pointer;text-align:left}
+.pop-item:hover{background:var(--panel2)}
+.pop-item.danger{color:var(--wine)}
+.pop-item .ic{width:15px;color:var(--ink3)}
+.pop-item.danger .ic{color:var(--wine)}
+.pop-sep{height:1px;background:var(--line);margin:5px 4px}
+.pop-head{font:600 10px 'IBM Plex Mono';letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);padding:7px 10px 5px}
+.pal{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px}
+.lm-row{display:flex;align-items:center;gap:9px;padding:7px 4px;border-bottom:1px solid var(--line)}
+.lm-row:last-of-type{border-bottom:0}
+.lm-swatch{width:22px;height:22px;border-radius:50%;background:var(--c);border:0;cursor:pointer;box-shadow:inset 0 0 0 2px var(--panel)}
+.lm-name{flex:1;min-width:0}
+.lm-count{font:500 11px 'IBM Plex Mono';color:var(--ink3)}
+
+/* ---------- toasts ---------- */
+#toasts{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:8px;z-index:150}
+.toast{display:flex;align-items:center;gap:11px;background:var(--ink);color:#F5F0E6;padding:12px 14px;border-radius:12px;box-shadow:var(--shadow-md);animation:tin .22s;font-size:13px;max-width:380px}
+.toast .ic{color:#DFA08B;width:17px;height:17px}
+.toast-msg{flex:1;line-height:1.4}
+.toast-act{border:0;background:rgba(255,255,255,.14);color:inherit;font-size:12px;font-weight:600;padding:5px 11px;border-radius:7px;cursor:pointer;white-space:nowrap}
+.toast-act:hover{background:rgba(255,255,255,.24)}
+
+/* ---------- first-run guide ---------- */
+#guide{position:fixed;inset:0;z-index:200;background:rgba(28,22,13,.5);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;animation:fade .2s}
+.gcard{width:min(490px,calc(100vw - 40px));background:var(--panel);border-radius:20px;border:1px solid var(--line2);box-shadow:var(--shadow-md);padding:34px 38px 26px;position:relative;animation:pop .25s}
+.g-eyebrow{font:600 10.5px 'IBM Plex Mono';letter-spacing:.2em;text-transform:uppercase;color:var(--accent)}
+.g-title{font-family:Fraunces;font-weight:600;font-size:27px;line-height:1.2;margin:12px 0 12px;letter-spacing:-.01em}
+.g-body{font-size:14px;line-height:1.7;color:var(--ink2)}
+.g-ill{width:48px;height:48px;border-radius:13px;border:1.5px solid var(--ink);display:flex;align-items:center;justify-content:center;color:var(--ink)}
+.g-ill .ic{width:22px;height:22px}
+.g-keys{display:flex;flex-wrap:wrap;gap:7px 16px;margin-top:16px;font-size:12px;color:var(--ink2);align-items:center}
+kbd{font:600 10.5px 'IBM Plex Mono';border:1px solid var(--line2);border-bottom-width:2px;border-radius:5px;padding:2px 6px;background:var(--panel2);color:var(--ink)}
+.g-foot{display:flex;align-items:center;gap:8px;margin-top:28px}
+.g-dots{display:flex;gap:5px;margin-right:auto}
+.g-dot{width:6px;height:6px;border-radius:50%;background:var(--line2);transition:.2s}
+.g-dot.on{background:var(--ink)}
+.g-skip{border:0;background:none;color:var(--ink3);font-size:12.5px;font-weight:600;cursor:pointer;padding:9px 10px}
+.g-skip:hover{color:var(--ink)}
+#sbscrim{position:fixed;inset:0;background:rgba(0,0,0,.32);z-index:74;display:none}
+
+/* ---------- responsive ---------- */
+@media (max-width:920px){
+  #sbToggle{display:inline-flex}
+  #sidebar{position:fixed;left:0;top:0;bottom:0;z-index:80;transform:translateX(-105%);transition:transform .25s;box-shadow:var(--shadow-md)}
+  body.sb-open #sidebar{transform:none}
+  body.sb-open #sbscrim{display:block}
+  #periodLabel{font-size:19px;min-width:0}
+  .search{width:min(300px,38vw)}
+  .dt-grid{grid-template-columns:1fr}
+}
+@media (max-width:600px){
+  #topbar{padding:0 8px;gap:4px}
+  .search{width:auto;flex:1;min-width:0}
+  #toolbar{height:auto;min-height:56px;padding:8px 10px;gap:6px;overflow-x:auto}
+  #periodLabel{order:3;font-size:18px;min-width:max-content}
+  #toolbar>div[style="flex:1"]{display:none}
+  .seg{margin-left:auto;flex:none}
+  .seg button{padding-inline:9px}
+  .agenda{padding-inline:10px}
+  .ag-row{gap:8px;padding-inline:4px}
+  .ag-time{width:82px;font-size:10px}
+  .ag-loc{display:none}
+  .gcard{padding:26px 24px 20px}
+  .modal{padding-inline:16px}
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- ══════════ SIDEBAR ══════════ -->
+  <aside id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">Q</div>
+      <div><div class="brand-name">Quad</div><div class="brand-sub">Four-year planner</div></div>
+    </div>
+    <button id="newBtn" class="btn btn-primary"></button>
+    <div class="sb" id="miniCal"></div>
+    <div class="sb">
+      <div class="sb-head"><span class="sb-title">Labels</span>
+        <button class="icon-btn" id="manageLabels" title="Manage labels" style="width:26px;height:26px"></button>
+      </div>
+      <div id="labelList"></div>
+    </div>
+    <div class="sb">
+      <div class="sb-head"><span class="sb-title">Up next</span></div>
+      <div id="upNext"></div>
+    </div>
+    <div class="sb-foot">Everything is stored privately on this device.<br>Back up from the menu from time to time.</div>
+  </aside>
+  <div id="sbscrim"></div>
+
+  <!-- ══════════ MAIN ══════════ -->
+  <main id="main">
+    <header id="topbar">
+      <button id="sbToggle" class="icon-btn"></button>
+      <div class="search" id="searchWrap"><input id="q" placeholder="Search events…" autocomplete="off"/></div>
+      <div style="flex:1"></div>
+      <button class="icon-btn" id="helpBtn" title="Guide (?)"></button>
+      <button class="icon-btn" id="menuBtn" title="Menu"></button>
+    </header>
+    <div id="toolbar">
+      <button id="todayBtn" class="btn">Today</button>
+      <div class="navpair">
+        <button id="prevBtn" class="icon-btn"></button>
+        <button id="nextBtn" class="icon-btn"></button>
+      </div>
+      <div id="periodLabel"></div>
+      <div style="flex:1"></div>
+      <div class="seg" id="viewSeg">
+        <button data-v="month">Month</button><button data-v="week">Week</button><button data-v="agenda">Agenda</button><button data-v="schedule">Schedule</button>
+      </div>
+    </div>
+    <div id="viewroot"></div>
+  </main>
+</div>
+
+<div id="modals"></div>
+<div id="toasts" aria-live="polite"></div>
+<input type="file" id="importFile" accept="application/json" hidden>
+<input type="file" id="importIcsFile" accept=".ics,text/calendar" hidden>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   QUAD — four-year planner
+   ───────────────────────────────────────────────────────────────
+   HOW THIS FILE IS ORGANISED (for future development):
+     1. Config & seed data   → edit holidays / default labels here
+     2. Utilities & icons
+     3. DB module            → the "database". Swap the storage
+                               adapter here for IndexedDB / SQLite.
+     4. Occurrence engine    → recurrence expansion + reminders
+     5. State & render       → sidebar, month / week / agenda views
+     6. UI primitives        → toasts, modals, popovers, confirm
+     7. Feature screens      → editor, details, label manager, search
+     8. Guide, shortcuts, boot
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── 1. CONFIG & SEED DATA ─────────────────────────────────── */
+
+const WEEK_START = 1; // Monday
+
+/* ✏️ EDIT ME — public holidays & special dates.
+   One line per date: ['YYYY-MM-DD', 'Name'].
+   Replace this list with your own country / university dates
+   (semester start, reading week, exam periods…). Only seeded once,
+   on first launch — after that they're normal editable events. */
+const SEED_HOLIDAYS = [
+  ['2025-01-01',"New Year's Day"],['2025-01-29','Lunar New Year'],
+  ['2025-04-18','Good Friday'],['2025-04-21','Easter Monday'],
+  ['2025-05-01','Labour Day'],['2025-10-31','Halloween'],
+  ['2025-12-24','Christmas Eve'],['2025-12-25','Christmas Day'],['2025-12-31',"New Year's Eve"],
+  ['2026-01-01',"New Year's Day"],['2026-02-17','Lunar New Year'],
+  ['2026-04-03','Good Friday'],['2026-04-06','Easter Monday'],
+  ['2026-05-01','Labour Day'],['2026-10-31','Halloween'],
+  ['2026-12-24','Christmas Eve'],['2026-12-25','Christmas Day'],['2026-12-31',"New Year's Eve"],
+  ['2027-01-01',"New Year's Day"],['2027-02-06','Lunar New Year'],
+  ['2027-03-26','Good Friday'],['2027-03-29','Easter Monday'],
+  ['2027-05-01','Labour Day'],['2027-10-31','Halloween'],
+  ['2027-12-24','Christmas Eve'],['2027-12-25','Christmas Day'],['2027-12-31',"New Year's Eve"],
+  ['2028-01-01',"New Year's Day"],['2028-01-26','Lunar New Year'],
+  ['2028-04-14','Good Friday'],['2028-04-17','Easter Monday'],
+  ['2028-05-01','Labour Day'],['2028-10-31','Halloween'],
+  ['2028-12-24','Christmas Eve'],['2028-12-25','Christmas Day'],['2028-12-31',"New Year's Eve"],
+];
+
+const SEED_CITYU_2026_27 = [
+  ['2026-07-27','2026-08-01','Student Revision Period'],
+  ['2026-08-03','2026-08-08','Examination Period'],
+  ['2026-08-10','2026-08-29','Term Break'],
+  ['2026-08-31','2026-11-28','Semester A 2026/27'],
+  ['2026-10-02','2026-10-02','Graduation Date'],
+  ['2026-10-03','2026-10-03','CityU UG Info Day (non-teaching day)'],
+  ['2026-11-28','2026-11-28','Last Day of Teaching'],
+  ['2026-11-30','2026-12-05','Student Revision Period'],
+  ['2026-12-07','2026-12-19','Examination Period'],
+  ['2026-12-21','2027-01-09','Semester Break'],
+  ['2027-01-11','2027-04-17','Semester B 2026/27'],
+  ['2027-02-01','2027-02-01','Graduation Date'],
+  ['2027-02-05','2027-02-11','Lunar New Year Break'],
+  ['2027-02-06','2027-02-09','Lunar New Year Holidays'],
+  ['2027-04-17','2027-04-17','Last Day of Teaching'],
+  ['2027-04-19','2027-04-24','Student Revision Period'],
+  ['2027-04-26','2027-05-10','Examination Period'],
+  ['2027-05-11','2027-06-05','Semester Break'],
+  ['2027-06-01','2027-06-01','Graduation Date'],
+  ['2027-06-07','2027-07-24','Summer Term 2027'],
+  ['2027-07-24','2027-07-24','Last Day of Teaching'],
+  ['2027-07-26','2027-07-31','Student Revision Period'],
+  ['2027-08-02','2027-08-07','Examination Period'],
+  ['2027-08-09','2027-08-28','Term Break'],
+];
+
+const SEED_CITYU_SPECIAL_DATES = [
+  ['2026-09-26','Day following Mid-Autumn Festival'],
+  ['2026-10-01','National Day'],
+  ['2026-10-19','Day following Chung Yeung Festival'],
+  ['2026-12-25','Christmas Day'],
+  ['2026-12-26','Day following Christmas Day'],
+  ['2027-01-01','First Day of January'],
+  ['2027-02-06','Lunar New Year Holiday'],
+  ['2027-02-07','Lunar New Year Holiday'],
+  ['2027-02-08','Lunar New Year Holiday'],
+  ['2027-02-09','Lunar New Year Holiday'],
+  ['2027-03-26','Good Friday'],
+  ['2027-03-27','Day following Good Friday'],
+  ['2027-03-29','Easter Monday'],
+  ['2027-04-05','Ching Ming Festival'],
+  ['2027-05-01','Labour Day'],
+  ['2027-05-13',"Buddha's Birthday"],
+  ['2027-06-09','Tuen Ng Festival'],
+  ['2027-07-01','Hong Kong SAR Establishment Day'],
+];
+
+const DEFAULT_LABELS = [
+  { id:'lb_lecture',    name:'Lecture',    color:'#2F6B5E' },
+  { id:'lb_assignment', name:'Assignment', color:'#B5432B' },
+  { id:'lb_exam',       name:'Exam',       color:'#8C2F39' },
+  { id:'lb_study',      name:'Study',      color:'#A8781F' },
+  { id:'lb_club',       name:'Club / Society', color:'#3E5F8A' },
+  { id:'lb_personal',   name:'Personal',   color:'#7A4A8A' },
+  { id:'lb_cityu',      name:'CityU Academic', color:'#9A61A8', locked:true },
+  { id:'lb_holiday',    name:'Holidays',   color:'#6E705C', locked:true },
+];
+const SWATCHES = ['#B5432B','#8C2F39','#C2657A','#A8781F','#2F6B5E','#3E5F8A','#7A4A8A','#6E705C','#5B5850'];
+const REMIND_OPTS = [[0,'At start time'],[5,'5 min before'],[10,'10 min before'],[15,'15 min before'],
+  [30,'30 min before'],[60,'1 hour before'],[120,'2 hours before'],[1440,'1 day before'],
+  [2880,'2 days before'],[10080,'1 week before']];
+const DOW_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+/* ─── 2. UTILITIES & ICONS ──────────────────────────────────── */
+
+const $  = s => document.querySelector(s);
+const DAY = 86400000;
+const pad = n => String(n).padStart(2,'0');
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id-'+Date.now()+'-'+Math.random().toString(36).slice(2,9));
+const esc = s => String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const toDateStr = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const toDTStr   = d => `${toDateStr(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const parseDate = s => { const [y,m,dd] = s.split('-').map(Number); return new Date(y, m-1, dd); };
+const parseDT   = s => s.length === 10 ? parseDate(s) : new Date(s);
+const startOfDay = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const endOfDay   = d => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23,59,59,999);
+const addDays   = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const addMonths = (d,n) => { const x = new Date(d); const dom = x.getDate(); x.setDate(1);
+  x.setMonth(x.getMonth()+n); const dim = new Date(x.getFullYear(), x.getMonth()+1, 0).getDate();
+  x.setDate(Math.min(dom, dim)); return x; };
+const diffDays  = (a,b) => Math.round((startOfDay(a) - startOfDay(b)) / DAY);
+const sameDay   = (a,b) => toDateStr(a) === toDateStr(b);
+const startOfWeek = d => addDays(startOfDay(d), -((d.getDay() - WEEK_START + 7) % 7));
+const hm = d => pad(d.getHours()) + ':' + pad(d.getMinutes());
+const fmtDayLong = d => d.toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+const debounce = (fn,ms) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; };
+
+const ICONS = {
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  x:'<path d="M6 6l12 12M18 6L6 18"/>',
+  'chev-l':'<path d="M15 6l-6 6 6 6"/>',
+  'chev-r':'<path d="M9 6l6 6-6 6"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.2-3.2"/>',
+  bell:'<path d="M18 9.5a6 6 0 1 0-12 0c0 6-2.2 7-2.2 7h16.4s-2.2-1-2.2-7"/><path d="M10.2 20a2 2 0 0 0 3.6 0"/>',
+  pin:'<path d="M12 21s-7-5.3-7-11a7 7 0 0 1 14 0c0 5.7-7 11-7 11z"/><circle cx="12" cy="10" r="2.6"/>',
+  clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  tag:'<path d="M3 11V4a1 1 0 0 1 1-1h7l10 10-8 8L3 11z"/><circle cx="7.5" cy="7.5" r="1.1"/>',
+  trash:'<path d="M4 7h16M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v5.5M14 11v5.5"/>',
+  pencil:'<path d="M16.8 3.8a2.3 2.3 0 0 1 3.3 3.3L7.5 19.7 3 21l1.3-4.5L16.8 3.8z"/>',
+  copy:'<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>',
+  cal:'<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',
+  dots:'<circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none"/>',
+  help:'<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.4 2.33c-.7.28-1 .77-1 1.62"/><path d="M12 16.7h.01"/>',
+  repeat:'<path d="M17 2.5l3.5 3.5L17 9.5"/><path d="M3.5 11.5V9.5a3.5 3.5 0 0 1 3.5-3.5h13.5"/><path d="M7 21.5L3.5 18 7 14.5"/><path d="M20.5 12.5v2a3.5 3.5 0 0 1-3.5 3.5H3.5"/>',
+  check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  download:'<path d="M12 3.5v11M7.5 10.5L12 15l4.5-4.5M4.5 19.5h15"/>',
+  upload:'<path d="M12 15V4M7.5 8L12 3.5 16.5 8M4.5 19.5h15"/>',
+  file:'<path d="M13.5 3H7a1.5 1.5 0 0 0-1.5 1.5v15A1.5 1.5 0 0 0 7 21h10a1.5 1.5 0 0 0 1.5-1.5V8L13.5 3z"/><path d="M13.5 3V8h5"/>',
+  sync:'<path d="M20 12a8 8 0 0 0-13.66-5.66M4 12a8 8 0 0 0 13.66 5.66"/><path d="M4 4v5h5"/><path d="M20 20v-5h-5"/>',
+};
+const I = (n,s=16) => `<svg class="ic" style="width:${s}px;height:${s}px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n]}</svg>`;
+
+/* ─── 3. DB MODULE — the local "database" ─────────────────────
+   Storage adapter pattern: everything goes through _read/_write.
+  Local persistence uses IndexedDB with a localStorage fallback.
+  Cloud sync uses the Supabase REST API:
+    DB.events.list/get/create/update/remove
+    DB.labels.*  ·  DB.settings.get/set                       */
+const SYNC_META_KEYS = new Set(['syncEndpoint','supabaseUrl','supabaseAnonKey','syncToken','syncDeviceId','syncEnabled','syncLastSync']);
+const DEFAULT_SUPABASE_URL = 'https://ykyeqqhtppqswqjftrov.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'PASTE_YOUR_SUPABASE_ANON_KEY_HERE';
+
+const DB = (() => {
+  const NS = 'quad.v1';
+  const K = { events:`${NS}.events`, labels:`${NS}.labels`, settings:`${NS}.settings`, meta:`${NS}.meta` };
+
+  /* ↓↓ STORAGE ADAPTER — IndexedDB with localStorage migration fallback ↓↓ */
+  const IDB_NAME = 'quad.v1';
+  const IDB_STORE = 'records';
+  let idb = null;
+  const local = {
+    read(key, fallback) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch(e){ return fallback; } },
+    write(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch(e){} },
+    drop(key) { try { localStorage.removeItem(key); } catch(e){} },
+  };
+  const idbOpen = () => new Promise((resolve, reject) => {
+    if (!('indexedDB' in window)) return reject(new Error('IndexedDB unavailable'));
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE, { keyPath:'key' });
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  const idbRead = key => new Promise((resolve, reject) => {
+    const req = idb.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).get(key);
+    req.onsuccess = () => resolve(req.result?.value);
+    req.onerror = () => reject(req.error);
+  });
+  const idbWrite = (key, value) => new Promise((resolve, reject) => {
+    const req = idb.transaction(IDB_STORE, 'readwrite').objectStore(IDB_STORE).put({key, value});
+    req.onsuccess = resolve;
+    req.onerror = () => reject(req.error);
+  });
+  const adapter = {
+    read: local.read,
+    write(key, value) {
+      local.write(key, value);
+      if (idb) idbWrite(key, value).catch(() => {});
+    },
+    drop(key) {
+      local.drop(key);
+      if (idb) idb.transaction(IDB_STORE, 'readwrite').objectStore(IDB_STORE).delete(key);
+    },
+  };
+  /* ↑↑ --------------------------------------------------------------- ↑↑ */
+
+  let events = new Map(), labels = new Map(), settings = {}, meta = {};
+  const subs = {};
+
+  function normalizeEvent(e){
+    return Object.assign({ id:uid(), title:'Untitled', allDay:false, location:'', notes:'',
+      labelId:'', repeat:'none', byday:[], until:null, exdates:[], reminders:[],
+      createdAt:new Date().toISOString(), updatedAt:new Date().toISOString() }, e);
+  }
+  function persist(col){
+    const data = col === 'events' ? [...events.values()]
+               : col === 'labels' ? [...labels.values()] : settings;
+    adapter.write(K[col], data);
+  }
+  function emit(topic){ Object.values(subs).flat().forEach(f => f(topic)); }
+
+  function addSeedEvent(title, start, end, labelId){
+    const exists = [...events.values()].some(e => e.title === title && e.start === start && e.end === end);
+    if (!exists) events.set(uid(), normalizeEvent({ title, allDay:true, start, end, labelId }));
+  }
+
+  function seedIfNeeded(){
+    if (!labels.has('lb_cityu')) labels.set('lb_cityu', { id:'lb_cityu', name:'CityU Academic', color:'#9A61A8', locked:true });
+    delete settings.syncEndpoint;
+    if (!settings.supabaseUrl) settings.supabaseUrl = DEFAULT_SUPABASE_URL;
+    if (!settings.supabaseAnonKey) settings.supabaseAnonKey = DEFAULT_SUPABASE_ANON_KEY;
+    if (!settings.syncDeviceId) settings.syncDeviceId = 'device-' + uid().slice(0,8);
+    if (!settings.syncToken) settings.syncToken = 'shared-cityu-calendar';
+    if (!meta.seeded){
+      DEFAULT_LABELS.forEach(l => labels.set(l.id, {...l}));
+      SEED_HOLIDAYS.forEach(([d, name]) => addSeedEvent(name, d, d, 'lb_holiday'));
+      meta.seeded = true;
+    }
+    if (!meta.cityu2026_27_v2){
+      SEED_CITYU_2026_27.forEach(([start, end, title]) => addSeedEvent(title, start, end, 'lb_cityu'));
+      SEED_CITYU_SPECIAL_DATES.forEach(([d, title]) => addSeedEvent(title, d, d, 'lb_holiday'));
+      meta.cityu2026_27_v2 = true;
+    }
+    ['events','labels','settings'].forEach(persist); adapter.write(K.meta, meta);
+  }
+
+  function loadLocal(){
+    events   = new Map((adapter.read(K.events, [])).map(e => [e.id, e]));
+    labels   = new Map((adapter.read(K.labels, [])).map(l => [l.id, l]));
+    settings = adapter.read(K.settings, {});
+    meta     = adapter.read(K.meta, {});
+    seedIfNeeded();
+  }
+
+  async function hydrate(){
+    try {
+      idb = await idbOpen();
+      const keys = Object.values(K);
+      const values = await Promise.all(keys.map(async key => {
+        const stored = await idbRead(key);
+        if (stored !== undefined) return [key, stored];
+        const fallback = local.read(key, key === K.events || key === K.labels ? [] : {});
+        await idbWrite(key, fallback);
+        return [key, fallback];
+      }));
+      const data = Object.fromEntries(values);
+      events = new Map((data[K.events] || []).map(e => [e.id, e]));
+      labels = new Map((data[K.labels] || []).map(l => [l.id, l]));
+      settings = data[K.settings] || {};
+      meta = data[K.meta] || {};
+      seedIfNeeded();
+    } catch(e) {
+      idb = null;
+    }
+  }
+
+  const DB = {
+    on(fn){ (subs._ = subs._ || []).push(fn); },
+    events: {
+      list: () => [...events.values()],
+      get: id => events.get(id) || null,
+      create(data){ const ev = normalizeEvent(data); events.set(ev.id, ev); persist('events'); emit('events'); return ev; },
+      update(id, patch){ const ev = events.get(id); if(!ev) return;
+        Object.assign(ev, patch, { updatedAt:new Date().toISOString() });
+        events.set(id, ev); persist('events'); emit('events'); return ev; },
+      remove(id){ events.delete(id); persist('events'); emit('events'); },
+    },
+    labels: {
+      list: () => [...labels.values()],
+      get: id => labels.get(id) || null,
+      create(data){ const l = { id:'lb_'+uid().slice(0,8), color:SWATCHES[0], ...data };
+        labels.set(l.id, l); persist('labels'); emit('labels'); return l; },
+      update(id, patch){ const l = labels.get(id); if(!l) return;
+        Object.assign(l, patch); labels.set(id, l); persist('labels'); emit('labels'); },
+      remove(id){ const l = labels.get(id); if(!l || l.locked) return;
+        labels.delete(id);
+        events.forEach(ev => { if(ev.labelId === id) ev.labelId = ''; });
+        persist('labels'); persist('events'); emit('labels'); },
+    },
+    settings: {
+      get: (k, def) => settings[k] ?? def,
+      set(k, v){ settings[k] = v; persist('settings'); },
+      list: () => ({ ...settings }),
+    },
+    restore(data){ // used by backup import
+      events = new Map((data.events||[]).map(e => [e.id, normalizeEvent(e)]));
+      labels = new Map((data.labels||[]).map(l => [l.id, l]));
+      if (!labels.has('lb_holiday')) labels.set('lb_holiday', { id:'lb_holiday', name:'Holidays', color:'#6E705C', locked:true });
+      meta = { seeded:true }; adapter.write(K.meta, meta);
+      persist('events'); persist('labels'); emit('all');
+    },
+    applySnapshot(data){
+      if (!data || typeof data !== 'object' || !Array.isArray(data.events) || !Array.isArray(data.labels)) {
+        throw new Error('Invalid calendar snapshot: events and labels must be arrays.');
+      }
+      const invalidEvent = data.events.find(e => !e || typeof e !== 'object' || typeof e.id !== 'string' || !e.id);
+      const invalidLabel = data.labels.find(l => !l || typeof l !== 'object' || typeof l.id !== 'string' || !l.id);
+      if (invalidEvent || invalidLabel) throw new Error('Invalid calendar snapshot: every event and label needs an id.');
+      const nextEvents = data.events.map(e => [e.id, normalizeEvent(e)]);
+      const nextLabels = data.labels.map(l => [l.id, l]);
+      events = new Map(nextEvents);
+      labels = new Map(nextLabels);
+      if (!labels.has('lb_holiday')) labels.set('lb_holiday', { id:'lb_holiday', name:'Holidays', color:'#6E705C', locked:true });
+      const localSync = Object.fromEntries([...SYNC_META_KEYS].filter(key => settings[key] !== undefined).map(key => [key, settings[key]]));
+      const incomingSettings = Object.fromEntries(Object.entries(data.settings || {}).filter(([key]) => !SYNC_META_KEYS.has(key)));
+      settings = { ...incomingSettings, ...settings, ...localSync };
+      meta = { ...meta, ...(data.meta || {}), seeded:true };
+      persist('events'); persist('labels'); persist('settings'); adapter.write(K.meta, meta); emit('all');
+    },
+    wipe(){ ['events','labels','settings','meta'].forEach(k => adapter.drop(K[k])); },
+  };
+  loadLocal();
+  const ready = hydrate();
+  DB.ready = ready;
+  return DB;
+})();
+
+/* ─── 4. OCCURRENCE ENGINE (recurrence + reminders) ─────────── */
+
+function ruleHit(ev, d){
+  if (ev.repeat === 'daily')   return true;
+  if (ev.repeat === 'weekdays')return d.getDay() >= 1 && d.getDay() <= 5;
+  if (ev.repeat === 'weekly')  return (ev.byday && ev.byday.length ? ev.byday : [parseDT(ev.start).getDay()]).includes(d.getDay());
+  return true;
+}
+/* Expands an event into concrete occurrences overlapping [rs, re). */
+function expand(ev, rs, re){
+  const out = [];
+  const push = (s, e) => { if ((ev.exdates || []).includes(toDateStr(s))) return; out.push({ ...ev, _s:s, _e:e, _key: ev.id + '@' + s.getTime() }); };
+  if (!ev.repeat || ev.repeat === 'none'){
+    if (ev.allDay){ const s = parseDate(ev.start), e = addDays(s, diffDays(parseDate(ev.end), s) + 1);
+      if (s < re && e > rs) push(s, e); }
+    else { const s = new Date(ev.start), e = new Date(ev.end); if (s < re && e > rs) push(s, e); }
+    return out;
+  }
+  const s0 = parseDT(ev.start);
+  const stop = ev.until ? endOfDay(parseDate(ev.until)) : addDays(s0, 1200); // ~3-year horizon
+  if (ev.repeat === 'monthly'){
+    let c = s0;
+    if (c < rs){ const m = (rs.getFullYear()-s0.getFullYear())*12 + (rs.getMonth()-s0.getMonth());
+      c = addMonths(c, Math.max(0, m-1)); while (c < rs) c = addMonths(c, 1); }
+    for (; c <= stop && c < re; c = addMonths(c, 1)){
+      const e = ev.allDay ? addDays(c, diffDays(parseDate(ev.end), parseDate(ev.start)) + 1)
+                          : new Date(c.getTime() + (new Date(ev.end) - s0));
+      if (e > rs) push(c, e);
+    }
+    return out;
+  }
+  const step0 = Math.max(0, diffDays(rs, s0) - 31); // lookback for multi-day overlap
+  for (let c = addDays(s0, step0); c <= stop && c < re; c = addDays(c, 1)){
+    if (!ruleHit(ev, c)) continue;
+    const e = ev.allDay ? addDays(c, diffDays(parseDate(ev.end), parseDate(ev.start)) + 1)
+                        : new Date(c.getTime() + (new Date(ev.end) - s0));
+    if (e > rs) push(c, e);
+  }
+  return out;
+}
+function repeatSummary(ev){
+  let s;
+  switch (ev.repeat){
+    case 'daily':    s = 'Daily'; break;
+    case 'weekdays': s = 'Weekdays (Mon–Fri)'; break;
+    case 'weekly':   { const b = (ev.byday && ev.byday.length) ? ev.byday : [parseDT(ev.start).getDay()];
+                       s = 'Weekly on ' + b.map(i => DOW_SHORT[i]).join(', '); break; }
+    case 'monthly':  s = 'Monthly'; break;
+    default: return 'Does not repeat';
+  }
+  return s + (ev.until ? ' · until ' + fmtDayLong(parseDate(ev.until)) : ' · never ends');
+}
+function remLabel(m){
+  if (m === 0) return 'At start';
+  if (m < 60)  return m + ' min before';
+  if (m < 1440)return (m/60) + ' hr before';
+  return (m/1440) + ' day' + (m > 1440 ? 's' : '') + ' before';
+}
+
+/* Reminder engine — checks every 30 s, fires in-app toasts and
+   browser notifications. Uses the DB query API directly. */
+const Reminders = (() => {
+  const FK = 'quad.v1.fired', SK = 'quad.v1.snooze';
+  let fired, snooze;
+  try { fired  = new Set(JSON.parse(localStorage.getItem(FK)  || '[]')); } catch(e){ fired = new Set(); }
+  try { snooze = new Map(JSON.parse(localStorage.getItem(SK) || '[]')); } catch(e){ snooze = new Map(); }
+  const save = () => { try {
+    localStorage.setItem(FK, JSON.stringify([...fired].slice(-800)));
+    localStorage.setItem(SK, JSON.stringify([...snooze]));
+  } catch(e){} };
+  function fire(o, m, key){
+    const title = o.title || 'Untitled event';
+    const when = m === 0 ? 'starting now' : remLabel(m).replace(' before',' from now');
+    toast(`${title} — ${when}.`, { icon:'bell', timeout:12000,
+      actions:[{ label:'Snooze 10 min', fn(){ fired.delete(key); snooze.set(key, Date.now()+600000); save(); toast('Snoozed for 10 minutes.', {icon:'clock'}); } }] });
+    try { if (typeof Notification !== 'undefined' && Notification.permission === 'granted')
+      new Notification('Quad · ' + title, { body: when[0].toUpperCase()+when.slice(1) }); } catch(e){}
+  }
+  function tick(){
+    const now = Date.now();
+    const list = queryWindow(new Date(now - DAY), addDays(new Date(), 32));
+    for (const o of list){
+      for (const m of (o.reminders || [])){
+        const key = `${o.id}@${o._s.getTime()}@${m}`;
+        if (fired.has(key)) continue;
+        const at = snooze.has(key) ? snooze.get(key) : (o._s.getTime() - m*60000);
+        if (at <= now && now - at < 6*3600e3){ fired.add(key); fire(o, m, key); }
+      }
+    }
+    save();
+  }
+  return { tick };
+})();
+
+/* ─── 5. STATE & RENDER ─────────────────────────────────────── */
+
+const state = {
+  view: DB.settings.get('view', 'month'),
+  date: parseDate(DB.settings.get('date', toDateStr(new Date()))),
+  hidden: new Set(DB.settings.get('hidden', [])),
+  query: '',
+};
+let INDEX = new Map(); // _key → occurrence, for click handling
+
+function queryWindow(rs, re, respectFilter = true){
+  const out = [];
+  for (const ev of DB.events.list()){
+    if (respectFilter && state.hidden.has(ev.labelId)) continue;
+    out.push(...expand(ev, rs, re));
+  }
+  return out.sort((a,b) => a._s - b._s || (b._e - b._s) - (a._e - a._s));
+}
+
+function saveState(){
+  DB.settings.set('view', state.view);
+  DB.settings.set('date', toDateStr(state.date));
+  DB.settings.set('hidden', [...state.hidden]);
+}
+
+function chipHTML(o, extra = ''){
+  const l = DB.labels.get(o.labelId);
+  const c = l ? l.color : '#8B8574';
+  const hol = l && l.id === 'lb_holiday';
+  const period = isLongAcademic(o);
+  const cls = ['chip', hol ? 'holiday' : '', period ? 'period-chip' : '', extra].filter(Boolean).join(' ');
+  const time = (!o.allDay && state.view !== 'week') ? `<time>${hm(o._s)}</time>` : '';
+  return `<button class="${cls}" style="--c:${c}" data-key="${o._key}">${time}<span class="ct">${esc(o.title)}</span></button>`;
+}
+
+function isLongAcademic(o){
+  return o.labelId === 'lb_cityu' && o.allDay && diffDays(o._e, o._s) > 2;
+}
+
+function periodAnchor(o, rangeStart){
+  const start = startOfDay(o._s);
+  return start < rangeStart ? startOfDay(rangeStart) : start;
+}
+
+/* ---------- sidebar ---------- */
+function renderSidebar(){
+  $('#newBtn').innerHTML = I('plus') + 'New event';
+
+  /* mini calendar */
+  const mc = $('#miniCal');
+  const first = new Date(state.date.getFullYear(), state.date.getMonth(), 1);
+  const grid0 = startOfWeek(first);
+  const occs = queryWindow(grid0, addDays(grid0, 42));
+  const byDay = new Map();
+  for (const o of occs){ for (let c = startOfDay(o._s); c < o._e; c = addDays(c, 1)){
+    const k = toDateStr(c); (byDay.get(k) || byDay.set(k, []).get(k)).push(o); } }
+  const wdRow = Array.from({length:7}, (_,i) =>
+    `<span class="mini-wd">${DOW_SHORT[(i + WEEK_START) % 7].slice(0,2).toUpperCase()}</span>`).join('');
+  let cells = '';
+  for (let i = 0; i < 42; i++){
+    const d = addDays(grid0, i), k = toDateStr(d);
+    const dots = (byDay.get(k) || []).slice(0,3).map(o => {
+      const l = DB.labels.get(o.labelId); return `<i class="mini-dot" style="--c:${l?l.color:'#8B8574'}"></i>`; }).join('');
+    cells += `<div class="mini-d ${sameDay(d,new Date())?'today':''} ${sameDay(d,state.date)?'on':''}" data-d="${k}">${d.getDate()}<span class="mini-dots">${dots}</span></div>`;
+  }
+  mc.innerHTML = `
+    <div class="mini-head">
+      <span class="mini-title">${first.toLocaleDateString(undefined,{month:'long',year:'numeric'})}</span>
+      <span><button class="icon-btn" data-mc="-1" style="width:24px;height:24px">${I('chev-l',13)}</button>
+      <button class="icon-btn" data-mc="1" style="width:24px;height:24px">${I('chev-r',13)}</button></span>
+    </div>
+    <div class="mini-grid">${wdRow}${cells}</div>`;
+  mc.querySelectorAll('[data-mc]').forEach(b => b.onclick = () => {
+    state.date = new Date(state.date.getFullYear(), state.date.getMonth() + +b.dataset.mc, 1); saveState(); render(); });
+  mc.querySelectorAll('.mini-d').forEach(d => d.onclick = () => {
+    state.date = parseDate(d.dataset.d); saveState(); render(); });
+
+  /* labels */
+  const counts = {};
+  DB.events.list().forEach(e => { if (e.labelId) counts[e.labelId] = (counts[e.labelId]||0)+1; });
+  $('#labelList').innerHTML = DB.labels.list().map(l => {
+    const off = state.hidden.has(l.id);
+    return `<button class="lrow ${off?'off':''}" data-id="${l.id}">
+      <span class="ldot ${off?'off':''}" style="--c:${l.color}">${I('check',10)}</span>
+      <span class="lname">${esc(l.name)}</span>
+      <span class="lcount">${counts[l.id]||0}</span></button>`;
+  }).join('');
+  $('#labelList').querySelectorAll('.lrow').forEach(r => r.onclick = () => {
+    const id = r.dataset.id;
+    state.hidden.has(id) ? state.hidden.delete(id) : state.hidden.add(id);
+    saveState(); render(); });
+  $('#manageLabels').innerHTML = I('pencil',13);
+  $('#manageLabels').onclick = openLabelManager;
+
+  /* up next */
+  const now = new Date();
+  const next = queryWindow(now, addDays(now, 14)).filter(o => o._e > now).slice(0,5);
+  $('#upNext').innerHTML = next.length ? next.map(o => {
+    const l = DB.labels.get(o.labelId);
+    const t = o.allDay ? 'All day' : (hm(o._s) + (sameDay(o._s,o._e) ? ' – ' + hm(o._e) : ''));
+    return `<button class="up-row" data-key="${o._key}">
+      <span class="up-date"><b>${o._s.getDate()}</b><span>${DOW_SHORT[o._s.getDay()].toUpperCase()}</span></span>
+      <span class="up-meta"><span class="up-t"><i class="up-dot" style="--c:${l?l.color:'#8B8574'}"></i>${esc(o.title)}</span>
+      <span class="up-s">${t}</span></span></button>`;
+  }).join('') : `<div class="empty-note">Nothing upcoming.<br>Press <b>C</b> to add your first event.</div>`;
+  $('#upNext').querySelectorAll('.up-row').forEach(r => r.onclick = () => {
+    const o = INDEX.get(r.dataset.key); if (o) openDetails(o); });
+}
+
+/* ---------- toolbar ---------- */
+function navPeriod(dir){
+  if (state.view === 'schedule') return;
+  if (state.view === 'month') state.date = new Date(state.date.getFullYear(), state.date.getMonth()+dir, 1);
+  else if (state.view === 'week') state.date = addDays(state.date, 7*dir);
+  else state.date = addDays(state.date, 30*dir);
+  saveState(); render();
+}
+function renderToolbar(){
+  $('#prevBtn').innerHTML = I('chev-l'); $('#nextBtn').innerHTML = I('chev-r');
+  $('#helpBtn').innerHTML = I('help'); $('#menuBtn').innerHTML = I('dots');
+  $('#sbToggle').innerHTML = I('menu');
+  const d = state.date;
+  $('#periodLabel').textContent =
+    state.view === 'month' ? d.toLocaleDateString(undefined,{month:'long',year:'numeric'}) :
+    state.view === 'week'  ? (() => { const a = startOfWeek(d), b = addDays(a,6);
+      const mo = t => t.toLocaleDateString(undefined,{month:'short'});
+      return a.getMonth() === b.getMonth()
+        ? `${mo(a)} ${a.getDate()} – ${b.getDate()}, ${b.getFullYear()}`
+        : `${mo(a)} ${a.getDate()} – ${mo(b)} ${b.getDate()}, ${b.getFullYear()}`; })() :
+      state.view === 'agenda' ? 'Agenda' : 'Class schedule';
+  $('#viewSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === state.view));
+}
+
+/* ---------- month view ---------- */
+function renderMonth(root){
+  const grid0 = startOfWeek(new Date(state.date.getFullYear(), state.date.getMonth(), 1));
+  const occs = queryWindow(grid0, addDays(grid0, 42));
+  occs.forEach(o => INDEX.set(o._key, o));
+  const byDay = new Map();
+  for (const o of occs){ for (let c = startOfDay(o._s); c < o._e; c = addDays(c, 1)){
+    const k = toDateStr(c); (byDay.get(k) || byDay.set(k, []).get(k)).push(o); } }
+  const wd = Array.from({length:7}, (_,i) =>
+    `<span>${DOW_SHORT[(i + WEEK_START) % 7].toUpperCase()}</span>`).join('');
+  let cells = '';
+  for (let i = 0; i < 42; i++){
+    const d = addDays(grid0, i), k = toDateStr(d);
+    const list = (byDay.get(k) || []);
+    const periods = list.filter(isLongAcademic);
+    const visible = list.filter(o => !isLongAcademic(o) || sameDay(d, periodAnchor(o, grid0)) || sameDay(d, addDays(startOfDay(o._e), -1)));
+    const chips = visible.slice(0,3).map(o => chipHTML(o,
+      isLongAcademic(o) && sameDay(d, addDays(startOfDay(o._e), -1)) ? 'period-end' : (isLongAcademic(o) ? '' : ((o._e - o._s > (o.allDay ? DAY : 0))
+        ? (startOfDay(o._s).getTime() === d.getTime() ? 'cont-r' : (d.getTime() === addDays(startOfDay(o._e),-1).getTime() ? 'cont-l' : 'cont-l cont-r'))
+        : '')))).join('');
+    const more = visible.length > 3 ? `<button class="more" data-d="${k}">+${visible.length - 3} more</button>` : '';
+    const period = periods[0];
+    const periodAnchorDay = period && periodAnchor(period, grid0);
+    const periodEndDay = period && addDays(startOfDay(period._e), -1);
+    const periodClasses = period ? ['mperiod',
+      sameDay(d, periodAnchorDay) ? 'start' : '',
+      sameDay(d, periodEndDay) ? 'end' : ''].filter(Boolean).join(' ') : '';
+    const periodLine = period ? `<button class="${periodClasses}" style="--c:${DB.labels.get(period.labelId)?.color || '#9A61A8'}" data-key="${period._key}" title="${esc(period.title)}"></button>` : '';
+    cells += `<div class="mcell ${periods.length ? 'period-span' : ''} ${d.getMonth() !== state.date.getMonth() ? 'other' : ''} ${sameDay(d,new Date())?'today':''}" data-d="${k}">
+      <span class="mnum">${d.getDate()}</span><div class="mchips">${chips}${more}</div>${periodLine}</div>`;
+  }
+  root.innerHTML = `<div class="viewwrap"><div class="mhead">${wd}</div><div class="mgrid">${cells}</div></div>`;
+  root.querySelector('.mgrid').onclick = e => {
+    const chip = e.target.closest('.chip'); if (chip){ const o = INDEX.get(chip.dataset.key); if (o) openDetails(o); return; }
+    const period = e.target.closest('.mperiod'); if (period){ const o = INDEX.get(period.dataset.key); if (o) openDetails(o); return; }
+    const more = e.target.closest('.more'); if (more){ openDayPopover(more, more.dataset.d); return; }
+    const cell = e.target.closest('.mcell'); if (cell) quickCreate(parseDate(cell.dataset.d));
+  };
+}
+
+/* ---------- week view ---------- */
+let suppressClick = false;
+function renderWeek(root){
+  const w0 = startOfWeek(state.date);
+  const occs = queryWindow(w0, addDays(w0, 7));
+  occs.forEach(o => INDEX.set(o._key, o));
+  const todayK = toDateStr(new Date());
+  const heads = Array.from({length:7}, (_,i) => { const d = addDays(w0,i);
+    return `<div class="whd ${toDateStr(d)===todayK?'today':''}"><span class="wkd">${DOW_SHORT[d.getDay()].toUpperCase()}</span><span class="wnum">${d.getDate()}</span></div>`; }).join('');
+  const H = 56;
+  const hours = Array.from({length:24}, (_,h) => `<span style="top:${h*H}px">${pad(h)}:00</span>`).join('');
+
+  /* all-day lane */
+  const adByDay = new Map(), tdByDay = new Map();
+  for (const o of occs){ const tgt = o.allDay ? adByDay : tdByDay;
+    for (let c = startOfDay(o._s); c < o._e; c = addDays(c,1)){
+      if (o.allDay && isLongAcademic(o) && !sameDay(c, periodAnchor(o, w0)) && !sameDay(c, addDays(startOfDay(o._e), -1))) continue;
+      const k = toDateStr(c); (tgt.get(k) || tgt.set(k, []).get(k)).push(o); } }
+  const adCols = Array.from({length:7}, (_,i) => { const d = addDays(w0,i), k = toDateStr(d);
+    return `<div class="wcol-ad" data-d="${k}">${(adByDay.get(k)||[]).map(o => chipHTML(o,
+      isLongAcademic(o) && sameDay(d, addDays(startOfDay(o._e), -1)) ? 'period-end' : '')).join('')}</div>`; }).join('');
+
+  /* timed blocks with lane layout */
+  const cols = Array.from({length:7}, (_,i) => {
+    const d = addDays(w0,i), k = toDateStr(d);
+    const list = (tdByDay.get(k)||[]).slice().sort((a,b)=>a._s-b._s || a._e-b._e);
+    const lanes = [];
+    const placed = list.map(ev => {
+      let li = lanes.findIndex(end => end <= ev._s);
+      if (li < 0){ lanes.push(ev._e); li = lanes.length - 1; } else lanes[li] = ev._e;
+      return { ev, li };
+    });
+    const total = Math.max(lanes.length, 1);
+    const blocks = placed.map(({ev, li}) => {
+      const top = ((ev._s.getHours()*60 + ev._s.getMinutes())/60) * H;
+      const hgt = Math.max(((ev._e - ev._s)/3600000) * H - 2, 16);
+      const l = DB.labels.get(ev.labelId); const c = l ? l.color : '#8B8574';
+      const w = 100/total;
+      return `<div class="wblock" style="--c:${c};top:${top}px;height:${hgt}px;left:calc(${li*w}% + 2px);width:calc(${w}% - 5px)" data-key="${ev._key}">
+        ${hm(ev._s)} ${esc(ev.title)}${hgt > 30 ? `<span class="wb-t">${hm(ev._s)} – ${hm(ev._e)}</span>` : ''}</div>`;
+    }).join('');
+    return `<div class="wcol" data-d="${k}">${blocks}</div>`;
+  }).join('');
+
+  root.innerHTML = `<div class="viewwrap"><div class="wk-scroll" id="wkScroll">
+    <div class="wk-head"><div class="wk-gut"></div>${heads}</div>
+    <div class="wk-allday"><div class="wk-gut">ALL DAY</div>${adCols}</div>
+    <div class="wk-body">
+      <div class="wk-hours">${hours}</div>
+      <div class="wk-cols" id="wkCols">${cols}<div class="nowline" id="nowLine" style="display:none"></div></div>
+    </div></div></div>`;
+
+  const sc = $('#wkScroll');
+  if (!root.dataset.scrolled){ sc.scrollTop = 7.5 * H; root.dataset.scrolled = '1'; }
+
+  /* click / drag-create */
+  sc.querySelectorAll('.wcol').forEach(col => {
+    col.addEventListener('mousedown', e => {
+      if (e.button !== 0 || e.target.closest('.wblock')) return;
+      e.preventDefault();
+      const r = col.getBoundingClientRect();
+      const slotAt = y => Math.min(1410, Math.max(0, Math.floor((y - r.top) / (H/2)) * 30));
+      const s0 = slotAt(e.clientY); let s1 = s0, moved = false;
+      const ghost = document.createElement('div'); ghost.className = 'wghost'; col.appendChild(ghost);
+      const onMove = ev => { s1 = slotAt(ev.clientY); moved = moved || Math.abs(s1 - s0) > 0;
+        const a = Math.min(s0,s1), b = Math.max(s0,s1) + 30;
+        ghost.style.top = (a/60)*H + 'px'; ghost.style.height = ((b-a)/60)*H + 'px';
+        ghost.textContent = `${pad(Math.floor(a/60))}:${pad(a%60)} – ${pad(Math.floor(b/60))}:${pad(b%60)}`; };
+      const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp);
+        ghost.remove();
+        const d = parseDate(col.dataset.d);
+        const a = Math.min(s0,s1), b = moved ? Math.max(s0,s1) + 30 : Math.min(s0 + 60, 1440);
+        const st = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Math.floor(a/60), a%60);
+        const en = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Math.floor(b/60), b%60);
+        if (en <= st) en.setTime(st.getTime() + 3600000);
+        if (moved) suppressClick = true;
+        openEditor({ defaults:{ start:st, end:en, allDay:false } }); };
+      document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+    });
+    col.addEventListener('click', e => {
+      if (suppressClick){ suppressClick = false; return; }
+      const blk = e.target.closest('.wblock'); if (blk){ const o = INDEX.get(blk.dataset.key); if (o) openDetails(o); }
+    });
+  });
+  sc.querySelectorAll('.wblock').forEach(block => {
+    block.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      const occurrence = INDEX.get(block.dataset.key);
+      const source = occurrence && DB.events.get(occurrence.id);
+      if (!occurrence || !source) return;
+      e.preventDefault(); e.stopPropagation();
+      const rect = block.getBoundingClientRect();
+      const resize = e.clientY >= rect.bottom - 10;
+      const col = block.closest('.wcol');
+      const colWidth = col.getBoundingClientRect().width;
+      const startX = e.clientX, startY = e.clientY;
+      let moved = false;
+      const onMove = moveEvent => { moved = moved || Math.abs(moveEvent.clientX-startX) > 3 || Math.abs(moveEvent.clientY-startY) > 3; };
+      const onUp = upEvent => {
+        document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp);
+        if (!moved) return;
+        suppressClick = true;
+        const dayDelta = Math.round((upEvent.clientX-startX) / colWidth);
+        const minuteDelta = Math.round((upEvent.clientY-startY) / (H/2)) * 30;
+        const originalStart = new Date(occurrence._s), originalEnd = new Date(occurrence._e);
+        let nextStart = new Date(originalStart), nextEnd = new Date(originalEnd);
+        if (resize){
+          nextEnd = new Date(originalEnd.getTime() + minuteDelta*60000);
+          if (nextEnd <= nextStart) nextEnd = new Date(nextStart.getTime() + 1800000);
+        } else {
+          nextStart = addDays(nextStart, dayDelta); nextEnd = addDays(nextEnd, dayDelta);
+          nextStart = new Date(nextStart.getTime() + minuteDelta*60000);
+          nextEnd = new Date(nextEnd.getTime() + minuteDelta*60000);
+        }
+        const patch = { start:toDTStr(nextStart), end:toDTStr(nextEnd) };
+        if (!resize && source.repeat === 'weekly') patch.byday = [nextStart.getDay()];
+        DB.events.update(source.id, patch);
+        toast(resize ? 'Event duration updated.' : 'Event moved.');
+      };
+      document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+    });
+  });
+  sc.querySelectorAll('.wcol-ad').forEach(col => col.onclick = e => {
+    const chip = e.target.closest('.chip'); if (chip){ const o = INDEX.get(chip.dataset.key); if (o) openDetails(o); return; }
+    openEditor({ defaults:{ start:parseDate(col.dataset.d), end:parseDate(col.dataset.d), allDay:true } });
+  });
+  updateNowLine();
+}
+
+function updateNowLine(){
+  const line = $('#nowLine'); if (!line) return;
+  const now = new Date();
+  const inWeek = sameDay(startOfWeek(state.date), startOfWeek(now));
+  if (state.view !== 'week' || !inWeek){ line.style.display = 'none'; return; }
+  line.style.display = 'block';
+  line.style.top = ((now.getHours()*60 + now.getMinutes())/60) * 56 + 'px';
+  line.innerHTML = `<span class="npill">${hm(now)}</span>`;
+}
+
+/* ---------- agenda view ---------- */
+function renderAgenda(root){
+  const from = startOfDay(new Date());
+  const occs = queryWindow(from, addDays(from, 90));
+  occs.forEach(o => INDEX.set(o._key, o));
+  const groups = new Map();
+  for (const o of occs){ const k = toDateStr(o._s); (groups.get(k) || groups.set(k, []).get(k)).push(o); }
+  if (!groups.size){
+    root.innerHTML = `<div class="viewwrap"><div class="agenda"><div class="ag-empty">
+      ${I('cal',34)}<p>Nothing on the horizon.</p>
+      <small>Press <kbd>C</kbd> to add your first event.</small></div></div></div>`;
+    return;
+  }
+  const todayK = toDateStr(new Date()), tomK = toDateStr(addDays(new Date(),1));
+  let html = '';
+  for (const [k, list] of groups){
+    const d = parseDate(k);
+    const rel = k === todayK ? 'Today' : k === tomK ? 'Tomorrow' : '';
+    html += `<div class="ag-head">${rel ? `<span class="rel">${rel}</span>` : ''}
+      <span class="dstr">${d.toLocaleDateString(undefined,{weekday:'long', day:'numeric', month:'long'})}</span></div>`;
+    html += list.map(o => {
+      const l = DB.labels.get(o.labelId); const c = l ? l.color : '#8B8574';
+      const t = o.allDay ? 'All day'
+        : (hm(o._s) + (sameDay(o._s,o._e) ? ' – ' + hm(o._e) : ' → ' + hm(o._e)));
+      const tag = l && l.id !== 'lb_holiday' ? `<span class="ag-tag" style="--c:${c}">${esc(l.name)}</span>` : '';
+      const loc = o.location ? `<span class="ag-loc">${esc(o.location)}</span>` : '';
+      return `<div class="ag-row" data-key="${o._key}" style="--c:${c}">
+        <span class="ag-time">${t}</span>
+        <span class="ag-main"><i class="ag-dot"></i><span class="ag-title">${esc(o.title)}</span>${loc}
+        ${o.repeat !== 'none' ? I('repeat',13) : ''}${tag}</span></div>`;
+    }).join('');
+  }
+  root.innerHTML = `<div class="viewwrap"><div class="agenda">${html}</div></div>`;
+  root.querySelector('.agenda').onclick = e => {
+    const row = e.target.closest('.ag-row'); if (row){ const o = INDEX.get(row.dataset.key); if (o) openDetails(o); } };
+}
+
+const SCHEDULE_DAYS = [[1,'Monday'],[2,'Tuesday'],[3,'Wednesday'],[4,'Thursday'],[5,'Friday'],[6,'Saturday'],[0,'Sunday']];
+const SCHEDULE_SEMESTERS = ['Semester A 2026/27','Semester B 2026/27','Summer Term 2027'];
+
+function renderSchedule(root){
+  const semester = DB.settings.get('scheduleSemester', SCHEDULE_SEMESTERS[0]);
+  const scheduleVisible = DB.settings.get('scheduleVisible', true);
+  const classes = (DB.settings.get('schedule', []) || []).filter(c => c.semester === semester);
+  const byDay = new Map(SCHEDULE_DAYS.map(([day]) => [day, []]));
+  classes.forEach(c => (byDay.get(+c.day) || byDay.get(1)).push(c));
+  byDay.forEach(list => list.sort((a,b) => String(a.start).localeCompare(String(b.start))));
+  const semOptions = SCHEDULE_SEMESTERS.map(s => `<option ${s===semester?'selected':''}>${s}</option>`).join('');
+  const columns = SCHEDULE_DAYS.map(([day,name]) => `<section class="schedule-day">
+    <div class="schedule-day-head">${name.toUpperCase()}</div><div class="class-list">${(byDay.get(day)||[]).map(c => {
+      const color = c.color || '#2F6B5E';
+      return `<button class="class-card" data-class="${esc(c.id)}" style="--c:${color}">
+        <span class="class-code">${esc(c.code || 'Untitled class')}</span>
+        <span class="class-time">${esc(c.start || '--:--')} – ${esc(c.end || '--:--')}</span>
+        ${c.room ? `<span class="class-room">${esc(c.room)}</span>` : ''}</button>`;
+    }).join('')}</div></section>`).join('');
+  root.innerHTML = `<div class="viewwrap"><div class="schedule">
+    <div class="schedule-bar"><h2>Class schedule</h2>
+      <select class="inp" id="scheduleSemester">${semOptions}</select>
+      <label class="sw-row"><input type="checkbox" id="scheduleVisible" ${scheduleVisible?'checked':''}/> Show timetable</label>
+      <button class="btn btn-primary" id="addClass">${I('plus',14)}Add class</button></div>
+    <div class="schedule-grid" ${scheduleVisible?'':'hidden'}>${classes.length ? columns : `<div class="schedule-empty"><p>No classes in this semester.</p><small>Add your timetable one class at a time.</small></div>`}</div>
+  </div></div>`;
+  root.querySelector('#scheduleSemester').onchange = e => { DB.settings.set('scheduleSemester', e.target.value); render(); };
+  root.querySelector('#scheduleVisible').onchange = e => { DB.settings.set('scheduleVisible', e.target.checked); render(); };
+  root.querySelector('#addClass').onclick = () => openClassEditor(null, { semester });
+  root.querySelectorAll('[data-class]').forEach(card => card.onclick = () => {
+    const item = (DB.settings.get('schedule', []) || []).find(c => c.id === card.dataset.class);
+    if (item) openClassEditor(item);
+  });
+}
+
+/* ---------- master render ---------- */
+function render(){
+  renderToolbar(); renderSidebar();
+  const root = $('#viewroot'); INDEX = new Map();
+  if (state.view === 'month') renderMonth(root);
+  else if (state.view === 'week') renderWeek(root);
+  else if (state.view === 'agenda') renderAgenda(root);
+  else renderSchedule(root);
+}
+let syncTimer = null;
+function scheduleCloudSync(){
+  if (!DB.settings.get('syncEnabled', false)) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => syncCalendar({ silent:true }), 700);
+}
+DB.on(topic => {
+  render();
+  if (topic === 'events' || topic === 'labels') scheduleCloudSync();
+});
+
+/* ─── 6. UI PRIMITIVES ──────────────────────────────────────── */
+
+function toast(msg, { icon='check', actions=[], timeout=5000 } = {}){
+  const t = document.createElement('div'); t.className = 'toast';
+  t.innerHTML = `${I(icon,17)}<div class="toast-msg">${esc(msg)}</div>`;
+  actions.forEach(a => { const b = document.createElement('button');
+    b.className = 'toast-act'; b.textContent = a.label; b.onclick = () => { a.fn(); t.remove(); };
+    t.appendChild(b); });
+  $('#toasts').appendChild(t);
+  setTimeout(() => t.remove(), timeout);
+}
+
+const modalStack = [];
+function openModal(html, { width=560 } = {}){
+  const scrim = document.createElement('div'); scrim.className = 'scrim';
+  scrim.innerHTML = `<div class="modal" style="width:min(${width}px,calc(100vw - 32px))">${html}</div>`;
+  $('#modals').appendChild(scrim);
+  const close = () => { if (!scrim.parentNode) return; scrim.remove();
+    const i = modalStack.indexOf(rec); if (i > -1) modalStack.splice(i,1); };
+  const rec = { close };
+  modalStack.push(rec);
+  scrim.addEventListener('mousedown', e => { if (e.target === scrim) close(); });
+  return { close, el: scrim.firstElementChild };
+}
+function confirmDialog({ title, body, confirmText='Delete', cancelText='Cancel' }){
+  return new Promise(res => {
+    const { close, el } = openModal(`
+      <div class="m-title">${esc(title)}</div>
+      <div style="color:var(--ink2);font-size:13.5px;line-height:1.6;margin-top:-8px">${esc(body)}</div>
+      <div class="m-foot"><span class="spacer"></span>
+        <button class="btn" data-a="0">${esc(cancelText)}</button>
+        <button class="btn btn-ghost-danger" data-a="1" style="border:1px solid var(--line2)">${esc(confirmText)}</button>
+      </div>`, { width:420 });
+    el.querySelector('[data-a="0"]').onclick = () => { close(); res(false); };
+    el.querySelector('[data-a="1"]').onclick = () => { close(); res(true); };
+  });
+}
+
+function openClassEditor(baseClass = null, options = {}){
+  const classData = baseClass || { semester:options.semester || DB.settings.get('scheduleSemester', SCHEDULE_SEMESTERS[0]), day:1, code:'', start:'09:00', end:'10:00', room:'', instructor:'', color:'#2F6B5E' };
+  const isNew = !baseClass;
+  const dayOptions = SCHEDULE_DAYS.map(([day,name]) => `<option value="${day}" ${+classData.day===day?'selected':''}>${name}</option>`).join('');
+  const semesterOptions = SCHEDULE_SEMESTERS.map(semester => `<option ${classData.semester===semester?'selected':''}>${semester}</option>`).join('');
+  const { close, el } = openModal(`<div class="m-title">${isNew ? 'Add class' : 'Edit class'}</div>
+    <div class="modal-body">
+      <div class="f-row"><div class="f-main"><span class="f-lab">Course code</span><input class="inp inp-full" id="classCode" placeholder="CS2117" value="${esc(classData.code)}" maxlength="30"/></div></div>
+      <div class="f-row"><div class="f-main"><span class="f-lab">Semester</span><select class="inp inp-full" id="classSemester">${semesterOptions}</select></div></div>
+      <div class="f-row"><div class="f-main"><span class="f-lab">Day</span><select class="inp inp-full" id="classDay">${dayOptions}</select></div></div>
+      <div class="f-row"><div class="f-main"><span class="f-lab">Time</span><div class="dt-grid"><input type="time" class="inp" id="classStart" value="${esc(classData.start)}"/><input type="time" class="inp" id="classEnd" value="${esc(classData.end)}"/></div></div></div>
+      <div class="f-row"><div class="f-main"><span class="f-lab">Room</span><input class="inp inp-full" id="classRoom" placeholder="B5-310" value="${esc(classData.room)}" maxlength="60"/></div></div>
+      <div class="f-row"><div class="f-main"><span class="f-lab">Instructor or section</span><input class="inp inp-full" id="classInstructor" value="${esc(classData.instructor)}" maxlength="80"/></div></div>
+    </div>
+    <div class="m-foot">${isNew ? '<span></span>' : '<button class="btn btn-ghost-danger" id="classDelete">Delete</button>'}<span class="spacer"></span><button class="btn" id="classCalendar">${I('cal',14)}Put on calendar</button><button class="btn" id="classCancel">Cancel</button><button class="btn btn-primary" id="classSave">Save</button></div>`, { width:460 });
+  const get = id => el.querySelector(id);
+  get('#classCancel').onclick = close;
+  get('#classCalendar').onclick = () => {
+    const semesterDates = {
+      'Semester A 2026/27':['2026-08-31','2026-11-28'],
+      'Semester B 2026/27':['2027-01-11','2027-04-17'],
+      'Summer Term 2027':['2027-06-07','2027-07-24'],
+    };
+    const [semesterStart, semesterEnd] = semesterDates[get('#classSemester').value] || semesterDates[SCHEDULE_SEMESTERS[0]];
+    const start = get('#classStart').value, end = get('#classEnd').value;
+    if (!get('#classCode').value.trim() || !start || !end || end <= start){ toast('Enter a course code and valid time.'); return; }
+    const day = +get('#classDay').value;
+    const first = parseDate(semesterStart);
+    const offset = (day - first.getDay() + 7) % 7;
+    const date = addDays(first, offset);
+    const title = get('#classCode').value.trim() + (get('#classRoom').value.trim() ? ' · ' + get('#classRoom').value.trim() : '');
+    DB.events.create({ title, allDay:false, start:`${toDateStr(date)}T${start}`, end:`${toDateStr(date)}T${end}`, repeat:'weekly', byday:[day], until:semesterEnd,
+      labelId:'lb_lecture', location:get('#classRoom').value.trim(), notes:get('#classInstructor').value.trim(), reminders:[] });
+    close(); toast('Weekly class added to the calendar.');
+  };
+  get('#classSave').onclick = () => {
+    const start = get('#classStart').value, end = get('#classEnd').value;
+    if (!get('#classCode').value.trim() || !start || !end || end <= start){ toast('Enter a course code and valid time.'); return; }
+    const schedule = DB.settings.get('schedule', []) || [];
+    const savedClass = { id:classData.id || 'cl_'+uid().slice(0,8), code:get('#classCode').value.trim(), semester:get('#classSemester').value,
+      day:+get('#classDay').value, start, end, room:get('#classRoom').value.trim(), instructor:get('#classInstructor').value.trim(), color:classData.color || '#2F6B5E' };
+    const index = schedule.findIndex(item => item.id === savedClass.id);
+    if (index < 0) schedule.push(savedClass); else schedule[index] = savedClass;
+    DB.settings.set('schedule', schedule); DB.settings.set('scheduleSemester', savedClass.semester); close(); render(); toast(isNew ? 'Class added.' : 'Class updated.');
+  };
+  if (!isNew) get('#classDelete').onclick = async () => {
+    const ok = await confirmDialog({ title:'Delete this class?', body:`${classData.code || 'This class'} will be removed from the schedule.` });
+    if (ok){ DB.settings.set('schedule', (DB.settings.get('schedule', []) || []).filter(item => item.id !== classData.id)); close(); render(); toast('Class deleted.', { icon:'trash' }); }
+  };
+}
+
+let activePop = null;
+function closePopover(){ if (activePop){ activePop.el.remove(); document.removeEventListener('mousedown', activePop.out, true); activePop = null; } }
+function openPopover(anchor, html, { width=240, onMount } = {}){
+  closePopover();
+  const el = document.createElement('div'); el.className = 'pop'; el.innerHTML = html;
+  if (width) el.style.width = width + 'px';
+  document.body.appendChild(el);
+  const r = anchor.getBoundingClientRect();
+  let x = r.left, y = r.bottom + 8;
+  if (x + el.offsetWidth > innerWidth - 10) x = innerWidth - 10 - el.offsetWidth;
+  if (y + el.offsetHeight > innerHeight - 10) y = Math.max(10, r.top - el.offsetHeight - 8);
+  el.style.left = x + 'px'; el.style.top = y + 'px';
+  const out = e => { if (!el.contains(e.target) && !anchor.contains(e.target)) closePopover(); };
+  document.addEventListener('mousedown', out, true);
+  activePop = { el, out };
+  if (onMount) onMount(el);
+  return el;
+}
+
+/* ─── 7. FEATURE SCREENS ────────────────────────────────────── */
+
+function quickCreate(day){
+  const s = new Date(day); s.setMinutes(0,0,0);
+  const now = new Date();
+  if (sameDay(day, now) && now.getHours() >= 8) s.setHours(Math.min(23, now.getHours() + 1));
+  else s.setHours(9);
+  const e = new Date(s); e.setHours(s.getHours() + 1);
+  openEditor({ defaults:{ start:s, end:e, allDay:false } });
+}
+
+/* ---------- event editor ---------- */
+function openEditor({ baseEvent = null, defaults = {} } = {}){
+  const isNew = !baseEvent;
+  const s0 = defaults.start || new Date(); s0.setMinutes(0,0,0);
+  const e0 = defaults.end || new Date(s0.getTime() + 3600000);
+  const ev = baseEvent ? { ...baseEvent } : {
+    title:'', allDay:!!defaults.allDay, start:'', end:'',
+    labelId: DB.settings.get('lastLabel',''), location:'', notes:'',
+    repeat:'none', byday:[], until:null, reminders: isNew ? [10] : [],
+  };
+  const vStart = baseEvent ? parseDT(ev.start) : s0;
+  const vEnd   = baseEvent ? parseDT(ev.end)   : e0;
+
+  const repOpts = [['none','Does not repeat'],['daily','Every day'],['weekly','Every week'],
+    ['weekdays','Every weekday (Mon–Fri)'],['monthly','Every month']];
+  const remOpts = REMIND_OPTS.map(([v,t]) => `<option value="${v}">${t}</option>`).join('');
+  const pills = [1,2,3,4,5,6,0];
+  const selPills = new Set(ev.repeat === 'weekly' && ev.byday?.length ? ev.byday : [vStart.getDay()]);
+
+  const { close, el } = openModal(`
+    <input class="e-title" id="evTitle" placeholder="New event" value="${esc(ev.title)}" maxlength="120"/>
+    <div class="modal-body">
+      <div class="f-row">${I('clock',17)}
+        <div class="f-main">
+          <div class="sw-row"><span>All day</span><span style="flex:1"></span><button class="switch ${ev.allDay?'on':''}" id="evAllday" type="button"></button></div>
+          <div class="dt-grid" style="margin-top:9px">
+            <div><span class="f-lab">Starts</span><input type="date" class="inp" id="evDS" style="width:calc(100% - 4px)"/> <input type="time" class="inp" id="evTS" step="900" style="width:88px;margin-top:6px"/></div>
+            <div><span class="f-lab">Ends</span><input type="date" class="inp" id="evDE" style="width:calc(100% - 4px)"/> <input type="time" class="inp" id="evTE" step="900" style="width:88px;margin-top:6px"/></div>
+          </div>
+        </div></div>
+      <div class="f-row">${I('repeat',17)}
+        <div class="f-main">
+          <select class="inp" id="evRep">${repOpts.map(([v,t]) => `<option value="${v}">${t}</option>`).join('')}</select>
+          <div class="pills" id="evPills" style="display:none">${pills.map(i =>
+            `<button type="button" class="pill ${selPills.has(i)?'on':''}" data-i="${i}">${DOW_SHORT[i]}</button>`).join('')}</div>
+          <div id="evUntilRow" style="display:none;margin-top:8px;display:none;align-items:center;gap:7px">
+            <span class="f-lab" style="margin:0">Until (optional)</span>
+            <input type="date" class="inp" id="evUntil" style="width:auto"/>
+            <button type="button" class="rem-x" id="evUntilX" title="Clear">${I('x',13)}</button>
+          </div>
+        </div></div>
+      <div class="f-row">${I('tag',17)}
+        <div class="f-main"><span class="f-lab">Label</span>
+          <div class="sws" id="evLabels">
+            ${DB.labels.list().map(l => `<button type="button" class="sw ${ev.labelId===l.id?'on':''}" data-l="${l.id}" title="${esc(l.name)}" style="--c:${l.color}"></button>`).join('')}
+            <button type="button" class="sw none ${!ev.labelId?'on':''}" data-l="" title="No label"></button>
+            <button type="button" class="link-btn" id="evManage" style="margin-left:4px">Manage…</button>
+          </div></div></div>
+      <div class="f-row">${I('pin',17)}
+        <div class="f-main"><input class="inp inp-full" id="evLoc" placeholder="Add location" value="${esc(ev.location)}" maxlength="120"/></div></div>
+      <div class="f-row">${I('bell',17)}
+        <div class="f-main"><span class="f-lab">Reminders</span>
+          <div id="evRems"></div>
+          <button type="button" class="link-btn" id="evAddRem">+ Add reminder</button></div></div>
+      <div class="f-row" style="align-items:flex-start">${I('file',17)}
+        <div class="f-main"><textarea class="inp inp-full" id="evNotes" placeholder="Notes" rows="3">${esc(ev.notes)}</textarea></div></div>
+    </div>
+    <div class="m-foot">
+      ${!isNew ? `<button class="btn btn-ghost-danger" id="evDel">${I('trash',14)}Delete</button>` : '<span></span>'}
+      <span class="spacer"></span>
+      <button class="btn" id="evCancel">Cancel</button>
+      <button class="btn btn-primary" id="evSave" style="padding:9px 18px">Save</button>
+    </div>`, { width:560 });
+
+  const g = id => el.querySelector(id);
+  g('#evDS').value = toDateStr(vStart); g('#evTS').value = ev.allDay ? '' : hm(vStart);
+  g('#evDE').value = toDateStr(vEnd);   g('#evTE').value = ev.allDay ? '' : hm(vEnd);
+  g('#evRep').value = ev.repeat; g('#evUntil').value = ev.until || '';
+
+  function syncAllDay(){
+    const on = g('#evAllday').classList.contains('on');
+    g('#evTS').disabled = g('#evTE').disabled = on;
+    g('#evTS').style.opacity = g('#evTE').style.opacity = on ? .4 : 1;
+  }
+  function syncRepeat(){
+    const r = g('#evRep').value;
+    g('#evPills').style.display = r === 'weekly' ? 'flex' : 'none';
+    g('#evUntilRow').style.display = r === 'none' ? 'none' : 'flex';
+  }
+  g('#evAllday').onclick = () => { g('#evAllday').classList.toggle('on'); syncAllDay(); };
+  g('#evRep').onchange = syncRepeat;
+  g('#evPills').querySelectorAll('.pill').forEach(p => p.onclick = () => p.classList.toggle('on'));
+  g('#evUntilX').onclick = () => { g('#evUntil').value = ''; };
+  g('#evLabels').querySelectorAll('.sw').forEach(sw => sw.onclick = () => {
+    g('#evLabels').querySelectorAll('.sw').forEach(x => x.classList.remove('on'));
+    sw.classList.add('on'); });
+  g('#evManage').onclick = () => openLabelManager();
+
+  function remRow(val){
+    const row = document.createElement('div'); row.className = 'rem-row';
+    row.innerHTML = `<select class="inp">${remOpts}</select><button type="button" class="rem-x">${I('x',13)}</button>`;
+    row.querySelector('select').value = String(val);
+    row.querySelector('.rem-x').onclick = () => row.remove();
+    return row;
+  }
+  const remBox = g('#evRems');
+  (ev.reminders.length ? ev.reminders : (isNew ? [10] : [])).forEach(v => remBox.appendChild(remRow(v)));
+  g('#evAddRem').onclick = () => { if (remBox.children.length < 5) remBox.appendChild(remRow(10)); };
+
+  g('#evCancel').onclick = close;
+  if (!isNew) g('#evDel').onclick = async () => {
+    close();
+    const ok = await confirmDialog({ title:'Delete this event?',
+      body: ev.repeat !== 'none' ? '“'+ev.title+'” repeats — deleting removes the whole series.' : '“'+ev.title+'” will be removed permanently.',
+      confirmText:'Delete' });
+    if (ok){ DB.events.remove(ev.id); toast('Event deleted.', { icon:'trash' }); } };
+
+  g('#evSave').onclick = () => {
+    const title = g('#evTitle').value.trim() || 'Untitled';
+    const allDay = g('#evAllday').classList.contains('on');
+    let ds = g('#evDS').value || toDateStr(vStart);
+    let de = g('#evDE').value || ds;
+    let start, end;
+    if (allDay){ if (!de || de < ds) de = ds; start = ds; end = de; }
+    else {
+      const ts = g('#evTS').value || '09:00', te = g('#evTE').value || '10:00';
+      if (de < ds) de = ds;
+      start = `${ds}T${ts}`; end = `${de}T${te}`;
+      if (new Date(end) <= new Date(start)) end = toDTStr(new Date(new Date(start).getTime() + 3600000));
+    }
+    const repeat = g('#evRep').value;
+    let byday = [];
+    if (repeat === 'weekly'){
+      byday = [...g('#evPills').querySelectorAll('.pill.on')].map(p => +p.dataset.i);
+      if (!byday.length) byday = [parseDate(ds).getDay()];
+    }
+    const data = {
+      title, allDay, start, end, repeat, byday,
+      until: repeat === 'none' ? null : (g('#evUntil').value || null),
+      labelId: g('#evLabels').querySelector('.sw.on')?.dataset.l || '',
+      location: g('#evLoc').value.trim(), notes: g('#evNotes').value,
+      reminders: [...new Set([...remBox.querySelectorAll('select')].map(s => +s.value))].sort((a,b)=>a-b),
+    };
+    if (data.reminders.length && typeof Notification !== 'undefined' && Notification.permission === 'default'){
+      try { Notification.requestPermission(); } catch(e){}
+    }
+    if (isNew){ DB.events.create(data); toast('Event added.'); }
+    else { DB.events.update(ev.id, data); toast('Changes saved.'); }
+    DB.settings.set('lastLabel', data.labelId);
+    close();
+  };
+
+  syncAllDay(); syncRepeat();
+  setTimeout(() => g('#evTitle').focus(), 60);
+}
+
+/* ---------- event details ---------- */
+function whenText(o){
+  if (o.allDay){
+    const days = Math.round((o._e - o._s) / DAY);
+    return days === 1 ? fmtDayLong(o._s) + ' · All day'
+      : `${fmtDayLong(o._s)} → ${fmtDayLong(addDays(o._e,-1))} · All day (${days} days)`;
+  }
+  const same = sameDay(o._s, o._e);
+  return `${fmtDayLong(o._s)} · ${hm(o._s)} – ${same ? hm(o._e) : fmtDayLong(o._e) + ' ' + hm(o._e)}`;
+}
+function openDetails(o){
+  const l = DB.labels.get(o.labelId);
+  const c = l ? l.color : '#8B8574';
+  const rems = (o.reminders||[]).map(remLabel).join(' · ');
+  const { close, el } = openModal(`
+    <button class="icon-btn x-close" id="dClose">${I('x',15)}</button>
+    ${l && l.id !== 'lb_holiday' ? `<span class="d-tag" style="--c:${c}"><i></i>${esc(l.name)}</span>` : ''}
+    <div class="d-title">${esc(o.title)}</div>
+    <div class="d-row">${I('clock',15)}<span>${esc(whenText(o))}</span></div>
+    ${o.repeat !== 'none' ? `<div class="d-row">${I('repeat',15)}<span>${esc(repeatSummary(o))}</span></div>` : ''}
+    ${o.location ? `<div class="d-row">${I('pin',15)}<span>${esc(o.location)}</span></div>` : ''}
+    ${rems ? `<div class="d-row">${I('bell',15)}<span>${esc(rems)}</span></div>` : ''}
+    ${o.notes ? `<div class="d-notes">${esc(o.notes)}</div>` : ''}
+    <div class="m-foot"><span class="spacer"></span>
+      ${o.repeat !== 'none' ? `<button class="btn" id="dSkip">Skip this occurrence</button>` : ''}
+      <button class="btn" id="dDup">${I('copy',14)}Duplicate</button>
+      <button class="btn" id="dEdit">${I('pencil',14)}Edit</button>
+    </div>`, { width:470 });
+  el.querySelector('#dClose').onclick = close;
+  if (o.repeat !== 'none') el.querySelector('#dSkip').onclick = () => {
+    const base = DB.events.get(o.id);
+    if (base){ DB.events.update(o.id, { exdates:[...new Set([...(base.exdates || []), toDateStr(o._s)])] }); close(); toast('Occurrence skipped.'); }
+  };
+  el.querySelector('#dEdit').onclick = () => { close(); openEditor({ baseEvent: DB.events.get(o.id) }); };
+  el.querySelector('#dDup').onclick = () => {
+    const base = DB.events.get(o.id);
+    if (base){ DB.events.create({ ...base, id:undefined, title: base.title + ' (copy)' }); toast('Event duplicated.'); }
+    close(); };
+}
+
+/* ---------- day popover ("+N more") ---------- */
+function openDayPopover(anchor, dateStr){
+  const d = parseDate(dateStr);
+  const list = [];
+  for (const o of INDEX.values())
+    if (o._s <= endOfDay(d) && o._e > startOfDay(d)) list.push(o);
+  list.sort((a,b) => a._s - b._s);
+  openPopover(anchor, `
+    <div class="pop-head">${d.toLocaleDateString(undefined,{weekday:'long', day:'numeric', month:'long'})}</div>
+    ${list.map(o => `<button class="pop-item" data-key="${o._key}" style="padding-block:5px">${chipHTML(o)}</button>`).join('')}
+    <div class="pop-sep"></div>
+    <button class="pop-item" data-add="1">${I('plus',15)}Add event</button>`,
+    { width:250, onMount(pEl){
+        pEl.querySelectorAll('[data-key]').forEach(b => b.onclick = () => {
+          closePopover(); const o = INDEX.get(b.dataset.key); if (o) openDetails(o); });
+        pEl.querySelector('[data-add]').onclick = () => { closePopover(); quickCreate(d); };
+      } });
+}
+
+/* ---------- label manager ---------- */
+function openLabelManager(){
+  const renderIn = (el) => {
+    const counts = {};
+    DB.events.list().forEach(e => { if (e.labelId) counts[e.labelId] = (counts[e.labelId]||0)+1; });
+    el.innerHTML = `<div class="m-title">Labels</div>
+      <div class="modal-body" id="lmBody">
+        ${DB.labels.list().map(l => `
+          <div class="lm-row" data-id="${l.id}">
+            <button class="lm-swatch" data-c="${l.id}" style="--c:${l.color}" title="Change colour"></button>
+            <input class="inp lm-name" data-n="${l.id}" value="${esc(l.name)}" ${l.locked?'disabled':''} maxlength="24"/>
+            <span class="lm-count">${counts[l.id]||0}</span>
+            ${l.locked ? `<span class="lm-count" title="Locked">•</span>`
+                       : `<button class="rem-x" data-x="${l.id}">${I('trash',14)}</button>`}
+          </div>`).join('')}
+      </div>
+      <div class="m-foot">
+        <button class="btn" id="lmAdd">${I('plus',14)}New label</button><span class="spacer"></span>
+        <button class="btn btn-primary" id="lmDone" style="padding:9px 18px">Done</button>
+      </div>
+      <div style="font-size:11.5px;color:var(--ink3);margin-top:8px">Deleting a label keeps its events — they just become unlabelled.</div>`;
+    el.querySelector('#lmDone').onclick = () => el.closest('.scrim') && el.parentElement.parentElement.remove();
+    const closeSelf = el.closest('.scrim') ? () => { el.closest('.scrim').remove();
+      const i = modalStack.findIndex(m => m.el === el); if (i>-1) modalStack.splice(i,1); } : () => {};
+    el.querySelector('#lmDone').onclick = closeSelf;
+    el.querySelector('#lmAdd').onclick = () => { DB.labels.create({ name:'New label', color:SWATCHES[Math.floor(Math.random()*SWATCHES.length)] }); };
+    el.querySelectorAll('[data-n]').forEach(inp => inp.onchange = () => DB.labels.update(inp.dataset.n, { name: inp.value.trim() || 'Untitled' }));
+    el.querySelectorAll('[data-x]').forEach(b => b.onclick = async () => {
+      const l = DB.labels.get(b.dataset.x);
+      const ok = await confirmDialog({ title:'Delete label “'+l.name+'”?',
+        body: `${counts[l.id]||0} event(s) will lose this label but stay on the calendar.`, confirmText:'Delete label' });
+      if (ok) DB.labels.remove(l.id); });
+    el.querySelectorAll('[data-c]').forEach(b => b.onclick = () => {
+      const id = b.dataset.c;
+      openPopover(b, `<div class="pal">${SWATCHES.map(c =>
+        `<button class="sw" data-col="${c}" style="--c:${c}"></button>`).join('')}</div>`,
+        { width:130, onMount(p){ p.querySelectorAll('[data-col]').forEach(s => s.onclick = () => {
+            DB.labels.update(id, { color:s.dataset.col }); closePopover(); }); } }); });
+  };
+  const { el } = openModal('<div id="lmRoot"></div>', { width:480 });
+  renderIn(el.querySelector('#lmRoot'));
+  const off = DB.on(() => { const r = el.querySelector('#lmRoot'); if (r) renderIn(r); });
+}
+
+/* ---------- search ---------- */
+const qInput = $('#q');
+qInput.addEventListener('input', debounce(() => {
+  const q = qInput.value.trim().toLowerCase();
+  if (!q){ closePopover(); return; }
+  const now = new Date();
+  const occs = queryWindow(addDays(now,-365), addDays(now,400)).filter(o =>
+    (o.title||'').toLowerCase().includes(q) || (o.notes||'').toLowerCase().includes(q) || (o.location||'').toLowerCase().includes(q)
+  ).slice(0,12);
+  occs.forEach(o => INDEX.set(o._key, o));
+  openPopover(qInput, occs.length ? occs.map(o => {
+    const l = DB.labels.get(o.labelId); const c = l ? l.color : '#8B8574';
+    return `<button class="pop-item" data-key="${o._key}">
+      <i class="up-dot" style="--c:${c}"></i>
+      <span style="min-width:0"><b style="display:block;font-size:12.5px">${esc(o.title)}</b>
+      <span style="font:500 10.5px 'IBM Plex Mono';color:var(--ink3)">${fmtDayLong(o._s)}${o.allDay?'':' · '+hm(o._s)}</span></span></button>`;
+  }).join('') : `<div class="pop-head" style="padding-block:10px">No matches</div>`,
+    { width:300, onMount(p){ p.querySelectorAll('[data-key]').forEach(b => b.onclick = () => {
+        const o = INDEX.get(b.dataset.key); if (!o) return;
+        closePopover(); qInput.value = '';
+        state.date = startOfDay(o._s); saveState(); render(); openDetails(o); }); } });
+}, 160));
+
+/* ---------- menu (backup / restore / export) ---------- */
+ $('#menuBtn').onclick = () => openPopover($('#menuBtn'), `
+  <button class="pop-item" data-act="json">${I('download',15)}Export backup (.json)</button>
+  <button class="pop-item" data-act="import">${I('upload',15)}Restore backup…</button>
+  <button class="pop-item" data-act="syncConfig">${I('sync',15)}Sync settings…</button>
+  <button class="pop-item" data-act="syncNow">${I('check',15)}Sync now</button>
+  <button class="pop-item" data-act="ics">${I('file',15)}Export calendar (.ics)</button>
+  <button class="pop-item" data-act="icsImport">${I('upload',15)}Import calendar (.ics)</button>
+  <div class="pop-sep"></div>
+  <button class="pop-item" data-act="guide">${I('help',15)}Replay the guide</button>
+  <div class="pop-sep"></div>
+  <button class="pop-item danger" data-act="wipe">${I('trash',15)}Erase all data</button>`,
+  { width:230, onMount(p){ p.querySelectorAll('[data-act]').forEach(b => b.onclick = () => {
+      closePopover(); menuAction(b.dataset.act); }); } });
+
+function download(name, text, type='text/plain'){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 800);
+}
+
+function parseIcsDate(value){
+  const raw = String(value || '');
+  if (/^\d{8}$/.test(raw)) return { date:new Date(+raw.slice(0,4), +raw.slice(4,6)-1, +raw.slice(6,8)), allDay:true };
+  const match = raw.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/);
+  if (!match) return null;
+  if (raw.endsWith('Z')) return { date:new Date(Date.UTC(+match[1], +match[2]-1, +match[3], +match[4], +match[5], +match[6])), allDay:false };
+  return { date:new Date(+match[1], +match[2]-1, +match[3], +match[4], +match[5], +match[6]), allDay:false };
+}
+function icsUnescape(value){ return String(value || '').replace(/\\n/gi,'\n').replace(/\\,/g,',').replace(/\\;/g,';').replace(/\\\\/g,'\\'); }
+function parseIcsEvents(text){
+  const lines = String(text).replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  const unfolded = [];
+  lines.forEach(line => /^\s/.test(line) && unfolded.length ? unfolded[unfolded.length-1] += line.trim() : unfolded.push(line));
+  const events = []; let current = null;
+  unfolded.forEach(line => {
+    if (line === 'BEGIN:VEVENT'){ current = {}; return; }
+    if (line === 'END:VEVENT'){ if (current) events.push(current); current = null; return; }
+    if (!current) return;
+    const colon = line.indexOf(':'); if (colon < 0) return;
+    const key = line.slice(0,colon).split(';')[0].toUpperCase(); current[key] = icsUnescape(line.slice(colon+1));
+  });
+  const dayMap = {SU:0,MO:1,TU:2,WE:3,TH:4,FR:5,SA:6};
+  return events.map(item => {
+    const start = parseIcsDate(item.DTSTART), finish = parseIcsDate(item.DTEND || item.DTSTART);
+    if (!start || !finish || !item.SUMMARY) return null;
+    const allDay = start.allDay;
+    const data = { title:item.SUMMARY, allDay, start:allDay ? toDateStr(start.date) : toDTStr(start.date),
+      end:allDay ? toDateStr(addDays(finish.date, -1)) : toDTStr(finish.date), location:item.LOCATION || '', notes:item.DESCRIPTION || '', labelId:'', repeat:'none', byday:[], until:null, reminders:[], externalUid:item.UID || '' };
+    const rule = item.RRULE || '';
+    const freq = rule.match(/(?:^|;)FREQ=([^;]+)/i)?.[1]?.toUpperCase();
+    if (freq === 'DAILY') data.repeat = 'daily';
+    if (freq === 'MONTHLY') data.repeat = 'monthly';
+    if (freq === 'WEEKLY') data.repeat = 'weekly';
+    const byday = rule.match(/(?:^|;)BYDAY=([^;]+)/i)?.[1];
+    if (byday){ data.byday = byday.split(',').map(day => dayMap[day.slice(-2)]).filter(day => day !== undefined); if (data.byday.length === 5 && data.byday.every(day => day >= 1 && day <= 5)) data.repeat = 'weekdays'; }
+    const until = rule.match(/(?:^|;)UNTIL=([^;]+)/i)?.[1];
+    if (until){ const parsedUntil = parseIcsDate(until); if (parsedUntil) data.until = toDateStr(parsedUntil.date); }
+    return data;
+  }).filter(Boolean);
+}
+function getSyncConfig(){
+  const deviceId = DB.settings.get('syncDeviceId', 'device-' + uid().slice(0,8));
+  const supabaseUrl = DB.settings.get('supabaseUrl', DEFAULT_SUPABASE_URL);
+  const supabaseAnonKey = DB.settings.get('supabaseAnonKey', DEFAULT_SUPABASE_ANON_KEY);
+  return {
+    supabaseUrl,
+    supabaseAnonKey,
+    token: DB.settings.get('syncToken', 'shared-cityu-calendar'),
+    deviceId,
+    enabled: !!DB.settings.get('syncEnabled', false),
+  };
+}
+
+function getPublicSyncSettings(){
+  const settings = DB.settings.list();
+  return Object.fromEntries(Object.entries(settings).filter(([key]) => !SYNC_META_KEYS.has(key)));
+}
+
+function repairSnapshotIds(snapshot){
+  const seenEvents = new Set();
+  const events = (snapshot.events || []).map(event => {
+    const repaired = { ...event };
+    if (!repaired.id || seenEvents.has(repaired.id)) repaired.id = uid();
+    seenEvents.add(repaired.id);
+    return repaired;
+  });
+  const seenLabels = new Set();
+  const labels = (snapshot.labels || []).map(label => {
+    const repaired = { ...label };
+    if (!repaired.id || seenLabels.has(repaired.id)) repaired.id = 'lb_' + uid().slice(0,8);
+    seenLabels.add(repaired.id);
+    return repaired;
+  });
+  return { ...snapshot, events, labels };
+}
+
+function mergeSyncSnapshots(localSnapshot, remoteSnapshot){
+  const events = new Map();
+  const eventKey = event => {
+    const isOfficial = event.labelId === 'lb_cityu' || event.labelId === 'lb_holiday';
+    return isOfficial
+      ? `official|${event.labelId}|${event.title || ''}|${event.start || ''}|${event.end || ''}`
+      : event.id || event.externalUid || `${event.title || ''}|${event.start || ''}|${event.end || ''}`;
+  };
+  const repairedRemote = repairSnapshotIds(remoteSnapshot);
+  const repairedLocal = repairSnapshotIds(localSnapshot);
+  [...repairedRemote.events, ...repairedLocal.events].forEach(event => {
+    const key = eventKey(event);
+    const current = events.get(key);
+    if (!current || String(event.updatedAt || '') >= String(current.updatedAt || '')) events.set(key, event);
+  });
+  const labels = new Map();
+  [...repairedRemote.labels, ...repairedLocal.labels].forEach(label => {
+    const key = label.id || `name:${label.name || ''}`;
+    if (!labels.has(key)) labels.set(key, label);
+  });
+  return {
+    events:[...events.values()],
+    labels:[...labels.values()],
+    settings:{ ...(remoteSnapshot.settings || {}), ...(localSnapshot.settings || {}) },
+    meta:{ ...(remoteSnapshot.meta || {}), ...(localSnapshot.meta || {}) },
+  };
+}
+
+async function syncCalendar({ silent = false } = {}){
+  const config = getSyncConfig();
+  if (!config.supabaseUrl || !config.supabaseAnonKey) {
+    toast('Sync is enabled but the Supabase URL or anon key is missing.', { icon:'x', timeout:9000 });
+    return false;
+  }
+  try {
+    const baseUrl = config.supabaseUrl.replace(/\/$/, '');
+    const headers = { 'apikey': config.supabaseAnonKey, 'Authorization': `Bearer ${config.supabaseAnonKey}`, 'Content-Type': 'application/json', 'Accept': 'application/json' };
+    const localSnapshot = { events:DB.events.list(), labels:DB.labels.list(), settings:getPublicSyncSettings(), meta:{ seeded:true } };
+    const pullResponse = await fetch(`${baseUrl}/rest/v1/quad_sync?token=eq.${encodeURIComponent(config.token)}&select=snapshot`, { method:'GET', headers });
+    if (!pullResponse.ok) throw new Error(`Supabase pull HTTP ${pullResponse.status}: ${await pullResponse.text()}`);
+    const remoteRows = await pullResponse.json();
+    const snapshot = mergeSyncSnapshots(localSnapshot, remoteRows[0]?.snapshot || {});
+    DB.applySnapshot(snapshot);
+    const response = await fetch(`${baseUrl}/rest/v1/quad_sync`, {
+      method: 'POST',
+      headers: { ...headers, 'Prefer':'resolution=merge-duplicates,return=representation' },
+      body: JSON.stringify({ token:config.token, device_id:config.deviceId, snapshot }),
+    });
+    if (!response.ok) throw new Error(`Supabase save HTTP ${response.status}: ${await response.text()}`);
+    const savedRows = await response.json();
+    if (savedRows[0]?.snapshot) {
+      DB.applySnapshot(savedRows[0].snapshot);
+      if (!silent) toast(`Calendar synced: ${savedRows[0].snapshot.events?.length || 0} events shared.`, { icon:'check' });
+    } else if (!silent) {
+      toast('Calendar synced, but Supabase returned no snapshot.', { icon:'x' });
+    }
+    DB.settings.set('syncLastSync', new Date().toISOString());
+    return true;
+  } catch (err) {
+    console.error('Sync failed:', err);
+    toast(`Sync failed: ${err.message}`.slice(0, 220), { icon:'x', timeout:9000 });
+    return false;
+  }
+}
+
+function openSyncDialog(){
+  const config = getSyncConfig();
+  const { close, el } = openModal(`
+    <div class="m-title">Sync settings</div>
+    <div class="modal-body">
+      <div class="f-row"><div class="f-main"><span class="f-lab">Supabase project URL</span><input class="inp inp-full" id="supabaseUrl" value="${esc(config.supabaseUrl)}" placeholder="https://your-project.supabase.co"/></div></div>
+      <div class="f-row"><div class="f-main"><span class="f-lab">Supabase anon key</span><input class="inp inp-full" id="supabaseAnonKey" value="${esc(config.supabaseAnonKey)}" placeholder="eyJhbGciOiJIUzI1NiIs..."/></div></div>
+      <div class="f-row"><div class="f-main"><span class="f-lab">Shared calendar key</span><input class="inp inp-full" id="syncToken" value="${esc(config.token)}" maxlength="64"/></div></div>
+      <div class="f-row"><div class="f-main"><span class="f-lab">Device id</span><input class="inp inp-full" id="syncDeviceId" value="${esc(config.deviceId)}" maxlength="64"/></div></div>
+      <div class="f-row"><div class="f-main"><label class="check-row"><input type="checkbox" id="syncEnabled" ${config.enabled ? 'checked' : ''}/> <span>Enable sync on this device</span></label></div></div>
+    </div>
+    <div class="m-foot"><span class="spacer"></span><button class="btn" id="syncTest">Sync now</button><button class="btn btn-primary" id="syncSave">Save</button></div>`, { width:440 });
+  el.querySelector('#syncSave').onclick = () => {
+    const supabaseUrl = el.querySelector('#supabaseUrl').value.trim();
+    const supabaseAnonKey = el.querySelector('#supabaseAnonKey').value.trim();
+    const token = el.querySelector('#syncToken').value.trim() || 'shared-cityu-calendar';
+    const deviceId = el.querySelector('#syncDeviceId').value.trim() || config.deviceId;
+    const enabled = el.querySelector('#syncEnabled').checked;
+    DB.settings.set('supabaseUrl', supabaseUrl);
+    DB.settings.set('supabaseAnonKey', supabaseAnonKey);
+    DB.settings.set('syncToken', token);
+    DB.settings.set('syncDeviceId', deviceId);
+    DB.settings.set('syncEnabled', enabled);
+    close();
+    toast(enabled ? 'Sync enabled.' : 'Sync settings saved.', { icon:'check' });
+    if (enabled) setTimeout(() => syncCalendar({ silent:false }), 100);
+  };
+  el.querySelector('#syncTest').onclick = async () => {
+    const supabaseUrl = el.querySelector('#supabaseUrl').value.trim();
+    const supabaseAnonKey = el.querySelector('#supabaseAnonKey').value.trim();
+    const token = el.querySelector('#syncToken').value.trim() || 'shared-cityu-calendar';
+    const deviceId = el.querySelector('#syncDeviceId').value.trim() || config.deviceId;
+    DB.settings.set('supabaseUrl', supabaseUrl);
+    DB.settings.set('supabaseAnonKey', supabaseAnonKey);
+    DB.settings.set('syncToken', token);
+    DB.settings.set('syncDeviceId', deviceId);
+    DB.settings.set('syncEnabled', el.querySelector('#syncEnabled').checked);
+    close();
+    await syncCalendar({ silent: false });
+  };
+}
+
+async function menuAction(act){
+  if (act === 'json'){
+    const data = { app:'quad', version:1, exportedAt:new Date().toISOString(),
+      events:DB.events.list(), labels:DB.labels.list() };
+    download(`quad-backup-${toDateStr(new Date()).replace(/-/g,'')}.json`, JSON.stringify(data, null, 2), 'application/json');
+    toast('Backup downloaded.', { icon:'download' });
+  }
+  if (act === 'import') $('#importFile').click();
+  if (act === 'syncConfig') openSyncDialog();
+  if (act === 'syncNow') await syncCalendar({ silent: false });
+  if (act === 'icsImport') $('#importIcsFile').click();
+  if (act === 'guide') openGuide();
+  if (act === 'wipe'){
+    const ok = await confirmDialog({
+      title:'Erase all calendar data?',
+      body:'Your events, labels, settings, and reminders will be removed from this browser. Default labels and holidays will be restored on reload.',
+      confirmText:'Erase all data'
+    });
+    if (ok){
+      DB.wipe();
+      location.reload();
+    }
+  }
+  if (act === 'ics'){
+    const BY = ['SU','MO','TU','WE','TH','FR','SA'];
+    const icsEsc = s => String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
+    const stamp = new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+    let out = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Quad//Four-Year Planner//EN','CALSCALE:GREGORIAN'];
+    for (const ev of DB.events.list()){
+      const l = DB.labels.get(ev.labelId);
+      out.push('BEGIN:VEVENT', `UID:${ev.id}@quad`, `DTSTAMP:${stamp}`, `SUMMARY:${icsEsc(ev.title)}`);
+      if (ev.allDay){
+        const endEx = toDateStr(addDays(parseDate(ev.end),1)).replace(/-/g,'');
+        out.push(`DTSTART;VALUE=DATE:${ev.start.replace(/-/g,'')}`, `DTEND;VALUE=DATE:${endEx}`);
+      } else {
+        out.push(`DTSTART:${ev.start.replace(/[-:]/g,'')}`, `DTEND:${ev.end.replace(/[-:]/g,'')}`);
+      }
+      if (ev.repeat !== 'none'){
+        let rr = ev.repeat === 'daily' ? 'FREQ=DAILY' : ev.repeat === 'monthly' ? 'FREQ=MONTHLY'
+          : 'FREQ=WEEKLY;BYDAY=' + (ev.repeat === 'weekdays' ? 'MO,TU,WE,TH,FR'
+            : (ev.byday||[parseDT(ev.start).getDay()]).map(i => BY[i]).join(','));
+        if (ev.until) rr += ';UNTIL=' + ev.until.replace(/-/g,'');
+        out.push(`RRULE:${rr}`);
+      }
+      if (l) out.push(`CATEGORIES:${icsEsc(l.name)}`);
+      if (ev.location) out.push(`LOCATION:${icsEsc(ev.location)}`);
+      if (ev.notes) out.push(`DESCRIPTION:${icsEsc(ev.notes)}`);
+      (ev.reminders||[]).forEach(m => out.push('BEGIN:VALARM', `TRIGGER:-PT${m}M`, 'ACTION:DISPLAY',
+        `DESCRIPTION:${icsEsc(ev.title)}`, 'END:VALARM'));
+      out.push('END:VEVENT');
+    }
+    out.push('END:VCALENDAR');
+    download('quad-calendar.ics', out.join('\r\n'), 'text/calendar');
+    toast('Exported for Google / Apple Calendar.', { icon:'file' });
+  }
+}
+ $('#importFile').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = async () => {
+    try {
+      const data = JSON.parse(r.result);
+      if (!Array.isArray(data.events) || !Array.isArray(data.labels)) throw 0;
+      const ok = await confirmDialog({ title:'Restore this backup?',
+        body:`It contains ${data.events.length} event(s) and will replace everything currently stored in this browser.`,
+        confirmText:'Replace' });
+      if (ok){ DB.restore(data); toast(`Restored ${data.events.length} events.`, { icon:'check' }); }
+    } catch(err){ toast('That file is not a valid Quad backup.', { icon:'x' }); }
+    e.target.value = '';
+  };
+  r.readAsText(f);
+};
+
+$('#importIcsFile').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = async () => {
+    try {
+      const parsed = parseIcsEvents(r.result);
+      const existing = DB.events.list();
+      const fresh = parsed.filter(item => !existing.some(event =>
+        (item.externalUid && event.externalUid === item.externalUid) ||
+        (event.title === item.title && event.start === item.start && event.end === item.end)));
+      if (!fresh.length){ toast('No new events found in that calendar.', { icon:'file' }); return; }
+      const ok = await confirmDialog({ title:'Import calendar events?', body:`Found ${parsed.length} event(s); ${fresh.length} new event(s) will be added.`, confirmText:'Import' });
+      if (ok){ fresh.forEach(item => DB.events.create(item)); toast(`Imported ${fresh.length} event(s).`, { icon:'upload' }); }
+    } catch(err){ toast('That file is not a readable ICS calendar.', { icon:'x' }); }
+    e.target.value = '';
+  };
+  r.readAsText(f);
+};
+
+/* ─── 8. GUIDE, SHORTCUTS & BOOT ────────────────────────────── */
+
+const GUIDE_STEPS = [
+  { ill:'cal', eyebrow:'Welcome to Quad', title:'Your four years,<br>on one calm grid.',
+    body:'The calendar starts completely empty — what appears here is entirely yours to create. A few public holidays for the coming years are pre-loaded as light all-day entries; hide the <b>Holidays</b> label anytime with one click in the sidebar.' },
+  { ill:'pencil', eyebrow:'Fill it with your life', title:'Click a day. Drag a week. Done.',
+    body:'Click any date to add an event. In <b>Week view</b>, drag across the grid to block out a lecture or study session. Every event can <b>repeat</b> (perfect for weekly classes), carry a colour label, a location, notes and reminders.' },
+  { ill:'bell', eyebrow:'Make it yours — and keep it safe', title:'One last thing',
+    body:'Labels double as filters: toggle them in the sidebar to focus. Everything is stored <b>privately in this browser</b> — export a backup from the menu now, and again at the end of each semester.',
+    keys:true },
+];
+let guideStep = 0, guideEl = null;
+function renderGuide(){
+  const s = GUIDE_STEPS[guideStep];
+  guideEl.innerHTML = `<div class="gcard">
+    <div class="g-ill">${I(s.ill,22)}</div>
+    <div class="g-eyebrow">${s.eyebrow}</div>
+    <div class="g-title">${s.title}</div>
+    <div class="g-body">${s.body}</div>
+    ${s.keys ? `<div class="g-keys">
+      <span><kbd>C</kbd> new event</span><span><kbd>T</kbd> today</span><span><kbd>M</kbd><kbd>W</kbd><kbd>A</kbd> views</span>
+      <span><kbd>←</kbd><kbd>→</kbd> move</span><span><kbd>/</kbd> search</span><span><kbd>?</kbd> guide</span></div>` : ''}
+    <div class="g-foot">
+      <div class="g-dots">${GUIDE_STEPS.map((_,i) => `<span class="g-dot ${i===guideStep?'on':''}"></span>`).join('')}</div>
+      <button class="g-skip" id="gSkip">Skip</button>
+      <button class="btn btn-primary" id="gNext" style="padding:10px 20px">${guideStep < GUIDE_STEPS.length-1 ? 'Next' : 'Start planning'}</button>
+    </div></div>`;
+  guideEl.querySelector('#gSkip').onclick = finishGuide;
+  guideEl.querySelector('#gNext').onclick = () => {
+    if (guideStep < GUIDE_STEPS.length - 1){ guideStep++; renderGuide(); } else finishGuide(); };
+}
+function finishGuide(){
+  guideEl.remove(); guideEl = null;
+  DB.settings.set('onboarded', true);
+  toast('Tip: press C to add your first event.', { icon:'plus', timeout:7000 });
+}
+function openGuide(){ guideStep = 0;
+  if (!guideEl){ guideEl = document.createElement('div'); guideEl.id = 'guide'; document.body.appendChild(guideEl); }
+  renderGuide(); }
+
+/* global wiring */
+ $('#newBtn').onclick = () => quickCreate(state.view === 'week' ? state.date : new Date());
+ $('#todayBtn').onclick = () => { state.date = new Date(); saveState(); render(); };
+ $('#prevBtn').onclick = () => navPeriod(-1);
+ $('#nextBtn').onclick = () => navPeriod(1);
+ $('#helpBtn').onclick = openGuide;
+ $('#viewSeg').querySelectorAll('button').forEach(b => b.onclick = () => {
+  state.view = b.dataset.v; saveState(); render(); });
+ $('#sbToggle').onclick = () => document.body.classList.toggle('sb-open');
+ $('#sbscrim').onclick = () => document.body.classList.remove('sb-open');
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape'){
+    if (activePop) return closePopover();
+    if (guideEl) return finishGuide();
+    const top = modalStack[modalStack.length-1]; if (top) top.close();
+    return;
+  }
+  const typing = /INPUT|TEXTAREA|SELECT/.test(e.target.tagName);
+  if (typing || modalStack.length || guideEl) return;
+  const k = e.key.toLowerCase();
+  if (k === 'c' || k === 'n'){ e.preventDefault(); quickCreate(state.view === 'week' ? state.date : new Date()); }
+  else if (k === 't'){ state.date = new Date(); saveState(); render(); }
+  else if (k === 'm') { state.view = 'month'; saveState(); render(); }
+  else if (k === 'w') { state.view = 'week';  saveState(); render(); }
+  else if (k === 'a') { state.view = 'agenda';saveState(); render(); }
+  else if (k === '/'){ e.preventDefault(); qInput.focus(); }
+  else if (e.key === '?') openGuide();
+  else if (e.key === 'ArrowLeft') navPeriod(-1);
+  else if (e.key === 'ArrowRight') navPeriod(1);
+});
+
+/* boot */
+DB.ready.then(() => {
+  state.view = DB.settings.get('view', 'month');
+  state.date = parseDate(DB.settings.get('date', toDateStr(new Date())));
+  state.hidden = new Set(DB.settings.get('hidden', []));
+  render();
+  if (DB.settings.get('syncEnabled', false)) setTimeout(() => syncCalendar({ silent:true }), 300);
+  setInterval(() => { Reminders.tick(); updateNowLine(); }, 30000);
+  Reminders.tick();
+  if (!DB.settings.get('onboarded', false)) setTimeout(openGuide, 350);
+});
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
