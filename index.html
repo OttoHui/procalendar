@@ -1795,17 +1795,26 @@ async function syncCalendar({ silent = false } = {}){
     let savedRows = [];
     for (let attempt = 0; attempt < 3; attempt++) {
       const nextUpdatedAt = new Date().toISOString();
-      const response = await fetch(`${baseUrl}/rest/v1/quad_sync?on_conflict=token`, {
-        method: 'POST',
-        headers: { ...headers, 'Prefer':'resolution=merge-duplicates,return=representation' },
+      const saveUrl = remoteRow
+        ? `${baseUrl}/rest/v1/quad_sync?token=eq.${encodeURIComponent(config.token)}`
+        : `${baseUrl}/rest/v1/quad_sync`;
+      const response = await fetch(saveUrl, {
+        method: remoteRow ? 'PATCH' : 'POST',
+        headers: { ...headers, 'Prefer':'return=representation' },
         body: JSON.stringify({ token:config.token, device_id:config.deviceId, snapshot, updated_at:nextUpdatedAt }),
       });
       const responseText = await response.text();
       if (!response.ok) {
-        if (response.status !== 409) {
+        if (response.status !== 409 || remoteRow) {
           throw new Error(`Supabase save HTTP ${response.status}: ${responseText}`);
         }
-        savedRows = [];
+        const raceUpdate = await fetch(`${baseUrl}/rest/v1/quad_sync?token=eq.${encodeURIComponent(config.token)}`, {
+          method: 'PATCH',
+          headers: { ...headers, 'Prefer':'return=representation' },
+          body: JSON.stringify({ device_id:config.deviceId, snapshot, updated_at:nextUpdatedAt }),
+        });
+        if (!raceUpdate.ok) throw new Error(`Supabase race update HTTP ${raceUpdate.status}: ${await raceUpdate.text()}`);
+        savedRows = await raceUpdate.json();
       } else {
         savedRows = JSON.parse(responseText || '[]');
       }
