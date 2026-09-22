@@ -15,7 +15,9 @@ The anon key is intended for browser applications. Never put a Supabase service-
 
 Open https://ottohui.github.io/procalendar/, open the menu, and choose **Sync settings**. Enter the same Supabase URL, anon key, and shared calendar key on every device. Use a different device id for each device and enable sync. Press **Sync now** after saving.
 
-The app keeps IndexedDB as an offline cache and merges local and cloud events before saving the combined calendar.
+The app keeps IndexedDB as an offline cache and merges local and cloud events before saving the combined calendar. Events are merged by their stable event ID, not by `updatedAt`.
+
+When both snapshots contain the same event ID, the device performing the sync keeps its local version. New IDs from either snapshot are added. Deletes are stored as tombstone IDs so a deleted event does not reappear from the other snapshot. If both devices edit the same event while offline, sync them one at a time; the second device's local version is the final version.
 
 ## Clean testing procedure for a new app version
 
@@ -44,13 +46,14 @@ Use the steps below whenever you publish a new version and want to test the sync
 9. On the iPad, refresh the page, then click **Sync now** once. Confirm that the latest Mac snapshot appears and no old stale event remains.
 10. Test a real merge: while both devices have the same calendar, create `merge-mac-01` on the Mac and create `merge-ipad-01` on the iPad before either device syncs again. Sync the Mac, then sync the iPad. Both events must remain visible on both devices.
 11. On the Mac, sync again and confirm the same final state is still present. A device must not replace a newer database snapshot with its older local snapshot.
-12. In Supabase SQL Editor, verify that the server row timestamp changes after a sync:
+12. Test deletion: delete `merge-mac-01` on the Mac and sync. Sync the iPad and confirm that the deleted event stays deleted. The event ID is retained as a tombstone during merging.
+13. In Supabase SQL Editor, verify that the server row timestamp changes after a sync:
    ```sql
    SELECT token, device_id, updated_at, snapshot->'events' AS events
    FROM public.quad_sync;
    ```
-13. If a sync happens at the same time as another device update, the app pulls the newer row and retries the merge automatically. Only if three consecutive writes race should a sync error appear; do not erase the database in that case, wait briefly and sync again.
-14. If the app still shows old data, close the tab, clear site data again, and repeat from step 1.
+14. If a sync happens at the same time as another device update, the app updates the existing row by shared calendar `token`, uses insert only when the row is absent, and handles an insert race with an update. Only if three consecutive writes fail should a sync error appear; do not erase the database in that case, wait briefly and sync again.
+15. If the app still shows old data, close the tab, clear site data again, and repeat from step 1.
 
 Important: do not test with old calendar entries or older names from previous experiments, because stale local browser data can make a clean test look broken. Use short unique names only.
 
