@@ -1199,7 +1199,16 @@ function render(){
   else if (state.view === 'agenda') renderAgenda(root);
   else renderSchedule(root);
 }
-DB.on(() => render());
+let syncTimer = null;
+function scheduleCloudSync(){
+  if (!DB.settings.get('syncEnabled', false)) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => syncCalendar({ silent:true }), 700);
+}
+DB.on(topic => {
+  render();
+  if (topic === 'events' || topic === 'labels') scheduleCloudSync();
+});
 
 /* ─── 6. UI PRIMITIVES ──────────────────────────────────────── */
 
@@ -1748,6 +1757,7 @@ function openSyncDialog(){
     DB.settings.set('syncEnabled', enabled);
     close();
     toast(enabled ? 'Sync enabled.' : 'Sync settings saved.', { icon:'check' });
+    if (enabled) setTimeout(() => syncCalendar({ silent:false }), 100);
   };
   el.querySelector('#syncTest').onclick = async () => {
     const supabaseUrl = el.querySelector('#supabaseUrl').value.trim();
@@ -1934,6 +1944,7 @@ DB.ready.then(() => {
   state.date = parseDate(DB.settings.get('date', toDateStr(new Date())));
   state.hidden = new Set(DB.settings.get('hidden', []));
   render();
+  if (DB.settings.get('syncEnabled', false)) setTimeout(() => syncCalendar({ silent:true }), 300);
   setInterval(() => { Reminders.tick(); updateNowLine(); }, 30000);
   Reminders.tick();
   if (!DB.settings.get('onboarded', false)) setTimeout(openGuide, 350);
