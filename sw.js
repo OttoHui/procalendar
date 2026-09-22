@@ -1,4 +1,4 @@
-const CACHE = 'quad-shell-v1';
+const CACHE = 'quad-shell-v2';
 const SHELL = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', event => {
