@@ -542,7 +542,7 @@ const I = (n,s=16) => `<svg class="ic" style="width:${s}px;height:${s}px" viewBo
   Cloud sync uses the Supabase REST API:
     DB.events.list/get/create/update/remove
     DB.labels.*  ·  DB.settings.get/set                       */
-const SYNC_META_KEYS = new Set(['supabaseUrl','supabaseAnonKey','syncToken','syncDeviceId','syncEnabled','syncLastSync']);
+const SYNC_META_KEYS = new Set(['syncEndpoint','supabaseUrl','supabaseAnonKey','syncToken','syncDeviceId','syncEnabled','syncLastSync']);
 
 const DB = (() => {
   const NS = 'quad.v1';
@@ -609,6 +609,7 @@ const DB = (() => {
 
   function seedIfNeeded(){
     if (!labels.has('lb_cityu')) labels.set('lb_cityu', { id:'lb_cityu', name:'CityU Academic', color:'#9A61A8', locked:true });
+    delete settings.syncEndpoint;
     if (!settings.syncDeviceId) settings.syncDeviceId = 'device-' + uid().slice(0,8);
     if (!settings.syncToken) settings.syncToken = 'shared-cityu-calendar';
     if (!meta.seeded){
@@ -702,7 +703,8 @@ const DB = (() => {
       labels = new Map(nextLabels);
       if (!labels.has('lb_holiday')) labels.set('lb_holiday', { id:'lb_holiday', name:'Holidays', color:'#6E705C', locked:true });
       const localSync = Object.fromEntries([...SYNC_META_KEYS].filter(key => settings[key] !== undefined).map(key => [key, settings[key]]));
-      settings = { ...(data.settings || {}), ...settings, ...localSync };
+      const incomingSettings = Object.fromEntries(Object.entries(data.settings || {}).filter(([key]) => !SYNC_META_KEYS.has(key)));
+      settings = { ...incomingSettings, ...settings, ...localSync };
       meta = { ...meta, ...(data.meta || {}), seeded:true };
       persist('events'); persist('labels'); persist('settings'); adapter.write(K.meta, meta); emit('all');
     },
