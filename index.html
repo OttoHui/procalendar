@@ -544,7 +544,7 @@ const I = (n,s=16) => `<svg class="ic" style="width:${s}px;height:${s}px" viewBo
     DB.labels.*  ·  DB.settings.get/set                       */
 const SYNC_META_KEYS = new Set(['syncEndpoint','supabaseUrl','supabaseAnonKey','syncToken','syncDeviceId','syncEnabled','syncLastSync']);
 const DEFAULT_SUPABASE_URL = 'https://ykyeqqhtppqswqjftrov.supabase.co';
-const DEFAULT_SUPABASE_ANON_KEY = 'PASTE_YOUR_SUPABASE_ANON_KEY_HERE';
+const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlreWVxcWh0cHBxc3dxamZ0cm92Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwMTgzNTYsImV4cCI6MjEwNTU5NDM1Nn0.i0rdFqLj5Zb1eEhwU1mvG8KUlQnv0mzS8FhvwhUKbWw';
 const APP_VERSION = 'quad-v3-sync-safe-2026-09';
 const APP_VERSION_KEY = 'quad.app.version';
 
@@ -625,14 +625,17 @@ const DB = (() => {
 
   function addSeedEvent(title, start, end, labelId){
     const exists = [...events.values()].some(e => e.title === title && e.start === start && e.end === end);
-    if (!exists) events.set(uid(), normalizeEvent({ title, allDay:true, start, end, labelId }));
+    if (!exists) events.set(`builtin|${labelId}|${start}|${end}|${title}`, normalizeEvent({ id:`builtin|${labelId}|${start}|${end}|${title}`, title, allDay:true, start, end, labelId }));
   }
 
   function seedIfNeeded(){
     if (!labels.has('lb_cityu')) labels.set('lb_cityu', { id:'lb_cityu', name:'CityU Academic', color:'#9A61A8', locked:true });
+    if (!labels.has('lb_holiday')) labels.set('lb_holiday', { id:'lb_holiday', name:'Holidays', color:'#6E705C', locked:true });
+    labels.get('lb_cityu').locked = true;
+    labels.get('lb_holiday').locked = true;
     delete settings.syncEndpoint;
     if (!settings.supabaseUrl) settings.supabaseUrl = DEFAULT_SUPABASE_URL;
-    if (!settings.supabaseAnonKey) settings.supabaseAnonKey = DEFAULT_SUPABASE_ANON_KEY;
+    if (!settings.supabaseAnonKey || settings.supabaseAnonKey === 'PASTE_YOUR_SUPABASE_ANON_KEY_HERE') settings.supabaseAnonKey = DEFAULT_SUPABASE_ANON_KEY;
     if (!settings.syncDeviceId) settings.syncDeviceId = 'device-' + uid().slice(0,8);
     if (!settings.syncToken) settings.syncToken = 'shared-cityu-calendar';
     if (!meta.seeded){
@@ -684,11 +687,12 @@ const DB = (() => {
       list: () => [...events.values()],
       get: id => events.get(id) || null,
       create(data){ const ev = normalizeEvent(data); events.set(ev.id, ev); meta.deletedEventIds = (meta.deletedEventIds || []).filter(id => id !== ev.id); persist('events'); adapter.write(K.meta, meta); emit('events'); return ev; },
-      update(id, patch){ const ev = events.get(id); if(!ev) return;
+      update(id, patch){ const ev = events.get(id); if(!ev || ev.labelId === 'lb_cityu' || ev.labelId === 'lb_holiday') return;
         Object.assign(ev, patch, { updatedAt:new Date().toISOString() });
         events.set(id, ev); persist('events'); emit('events'); return ev; },
       remove(id){
-        if (!events.has(id)) return;
+        const event = events.get(id);
+        if (!event || event.labelId === 'lb_cityu' || event.labelId === 'lb_holiday') return;
         events.delete(id);
         meta.deletedEventIds = [...new Set([...(meta.deletedEventIds || []), id])];
         persist('events'); adapter.write(K.meta, meta); emit('events');
@@ -699,9 +703,9 @@ const DB = (() => {
       get: id => labels.get(id) || null,
       create(data){ const l = { id:'lb_'+uid().slice(0,8), color:SWATCHES[0], ...data };
         labels.set(l.id, l); persist('labels'); emit('labels'); return l; },
-      update(id, patch){ const l = labels.get(id); if(!l) return;
+      update(id, patch){ const l = labels.get(id); if(!l || l.locked || id === 'lb_cityu' || id === 'lb_holiday') return;
         Object.assign(l, patch); labels.set(id, l); persist('labels'); emit('labels'); },
-      remove(id){ const l = labels.get(id); if(!l || l.locked) return;
+      remove(id){ const l = labels.get(id); if(!l || l.locked || id === 'lb_cityu' || id === 'lb_holiday') return;
         labels.delete(id);
         events.forEach(ev => { if(ev.labelId === id) ev.labelId = ''; });
         persist('labels'); persist('events'); emit('labels'); },
@@ -712,9 +716,14 @@ const DB = (() => {
       list: () => ({ ...settings }),
     },
     deletedEventIds: () => [...new Set(meta.deletedEventIds || [])],
+    syncBase: () => meta.syncBase || null,
+    setSyncBase(snapshot, remoteUpdatedAt){
+      meta.syncBase = { snapshot, remoteUpdatedAt: remoteUpdatedAt || null };
+      adapter.write(K.meta, meta);
+    },
     restore(data){ // used by backup import
       events = new Map((data.events||[]).map(e => [e.id, normalizeEvent(e)]));
-      labels = new Map((data.labels||[]).map(l => [l.id, l]));
+      labels = new Map((data.labels||[]).map(l => [l.id, { ...l, locked:l.id === 'lb_cityu' || l.id === 'lb_holiday' ? true : !!l.locked }]));
       if (!labels.has('lb_holiday')) labels.set('lb_holiday', { id:'lb_holiday', name:'Holidays', color:'#6E705C', locked:true });
       meta = { seeded:true }; adapter.write(K.meta, meta);
       persist('events'); persist('labels'); emit('all');
@@ -727,7 +736,7 @@ const DB = (() => {
       const invalidLabel = data.labels.find(l => !l || typeof l !== 'object' || typeof l.id !== 'string' || !l.id);
       if (invalidEvent || invalidLabel) throw new Error('Invalid calendar snapshot: every event and label needs an id.');
       const nextEvents = data.events.map(e => [e.id, normalizeEvent(e)]);
-      const nextLabels = data.labels.map(l => [l.id, l]);
+      const nextLabels = data.labels.map(l => [l.id, { ...l, locked:l.id === 'lb_cityu' || l.id === 'lb_holiday' ? true : !!l.locked }]);
       events = new Map(nextEvents);
       labels = new Map(nextLabels);
       if (!labels.has('lb_holiday')) labels.set('lb_holiday', { id:'lb_holiday', name:'Holidays', color:'#6E705C', locked:true });
@@ -1379,6 +1388,10 @@ function quickCreate(day){
 
 /* ---------- event editor ---------- */
 function openEditor({ baseEvent = null, defaults = {} } = {}){
+  if (baseEvent && (baseEvent.labelId === 'lb_cityu' || baseEvent.labelId === 'lb_holiday')) {
+    toast('CityU Academic and Holidays events cannot be changed.', { icon:'x' });
+    return;
+  }
   const isNew = !baseEvent;
   const s0 = defaults.start || new Date(); s0.setMinutes(0,0,0);
   const e0 = defaults.end || new Date(s0.getTime() + 3600000);
@@ -1747,19 +1760,38 @@ function repairSnapshotIds(snapshot){
   return { ...snapshot, events, labels };
 }
 
-function mergeSyncSnapshots(localSnapshot, remoteSnapshot){
+function stableSnapshotValue(value){
+  if (Array.isArray(value)) return value.map(stableSnapshotValue);
+  if (value && typeof value === 'object') {
+    return Object.keys(value).sort().reduce((out, key) => {
+      out[key] = stableSnapshotValue(value[key]);
+      return out;
+    }, {});
+  }
+  return value;
+}
+function snapshotsEqual(left, right){
+  return JSON.stringify(stableSnapshotValue(left || {})) === JSON.stringify(stableSnapshotValue(right || {}));
+}
+
+function mergeSyncSnapshots(localSnapshot, remoteSnapshot, baseSnapshot = null){
   const events = new Map();
+  const eventMergeKey = event => (event.labelId === 'lb_cityu' || event.labelId === 'lb_holiday')
+    ? `builtin|${event.labelId}|${event.title || ''}|${event.start || ''}|${event.end || ''}`
+    : event.id;
   const repairedRemote = repairSnapshotIds(remoteSnapshot);
   const repairedLocal = repairSnapshotIds(localSnapshot);
-  repairedRemote.events.forEach(event => events.set(event.id, event));
-  // Same IDs are deliberately resolved in favor of this device's local copy.
-  repairedLocal.events.forEach(event => events.set(event.id, event));
-  const deletedEventIds = new Set([
-    ...(remoteSnapshot.deletedEventIds || []),
-    ...(localSnapshot.deletedEventIds || []),
-  ]);
-  for (const [id] of events) {
-    if (deletedEventIds.has(id)) events.delete(id);
+  const baseEvents = new Map((baseSnapshot?.events || []).map(event => [eventMergeKey(event), event]));
+  const localEvents = new Map(repairedLocal.events.map(event => [eventMergeKey(event), event]));
+  const remoteEvents = new Map(repairedRemote.events.map(event => [eventMergeKey(event), event]));
+  const eventIds = new Set([...baseEvents.keys(), ...localEvents.keys(), ...remoteEvents.keys()]);
+  for (const id of eventIds) {
+    const baseEvent = baseEvents.get(id);
+    const localEvent = localEvents.get(id);
+    const remoteEvent = remoteEvents.get(id);
+    const localChanged = !snapshotsEqual(localEvent, baseEvent);
+    const chosen = localChanged ? localEvent : remoteEvent;
+    if (chosen) events.set(id, chosen);
   }
   const labels = new Map();
   [...repairedRemote.labels, ...repairedLocal.labels].forEach(label => {
@@ -1769,7 +1801,7 @@ function mergeSyncSnapshots(localSnapshot, remoteSnapshot){
   return {
     events:[...events.values()],
     labels:[...labels.values()],
-    deletedEventIds:[...deletedEventIds],
+    deletedEventIds:[],
     settings:{ ...(remoteSnapshot.settings || {}), ...(localSnapshot.settings || {}) },
     meta:{ ...(remoteSnapshot.meta || {}), ...(localSnapshot.meta || {}) },
   };
@@ -1789,7 +1821,16 @@ async function syncCalendar({ silent = false } = {}){
     if (!pullResponse.ok) throw new Error(`Supabase pull HTTP ${pullResponse.status}: ${await pullResponse.text()}`);
     const remoteRows = await pullResponse.json();
     let remoteRow = remoteRows[0] || null;
-    let snapshot = mergeSyncSnapshots(localSnapshot, remoteRow?.snapshot || {});
+    const syncBase = DB.syncBase();
+    const hasLocalChanges = !syncBase || !snapshotsEqual(localSnapshot, syncBase.snapshot);
+    if (remoteRow && syncBase && !hasLocalChanges && remoteRow.updated_at !== syncBase.remoteUpdatedAt) {
+      DB.applySnapshot(remoteRow.snapshot);
+      DB.setSyncBase(remoteRow.snapshot, remoteRow.updated_at);
+      if (!silent) toast(`Calendar refreshed: ${remoteRow.snapshot.events?.length || 0} events shared.`, { icon:'check' });
+      return true;
+    }
+    if (remoteRow && syncBase && !hasLocalChanges) return true;
+    let snapshot = mergeSyncSnapshots(localSnapshot, remoteRow?.snapshot || {}, syncBase?.snapshot || null);
     DB.applySnapshot(snapshot);
     let savedRows = [];
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -1822,7 +1863,7 @@ async function syncCalendar({ silent = false } = {}){
       if (!retryResponse.ok) throw new Error(`Supabase retry pull HTTP ${retryResponse.status}: ${await retryResponse.text()}`);
       const retryRows = await retryResponse.json();
       remoteRow = retryRows[0] || null;
-      snapshot = mergeSyncSnapshots(localSnapshot, remoteRow?.snapshot || {});
+      snapshot = mergeSyncSnapshots(localSnapshot, remoteRow?.snapshot || {}, syncBase?.snapshot || null);
       DB.applySnapshot(snapshot);
       if (attempt === 2) {
         throw new Error('Supabase upsert did not return the saved calendar row.');
@@ -1831,6 +1872,7 @@ async function syncCalendar({ silent = false } = {}){
     if (!savedRows.length) throw new Error('Supabase save conflicted with a newer device update. Please sync again.');
     if (savedRows[0]?.snapshot) {
       DB.applySnapshot(savedRows[0].snapshot);
+      DB.setSyncBase(savedRows[0].snapshot, savedRows[0].updated_at || null);
       if (!silent) toast(`Calendar synced: ${savedRows[0].snapshot.events?.length || 0} events shared.`, { icon:'check' });
     } else if (!silent) {
       toast('Calendar synced, but Supabase returned no snapshot.', { icon:'x' });
