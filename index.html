@@ -1681,7 +1681,7 @@ function getPublicSyncSettings(){
 
 function mergeSyncSnapshots(localSnapshot, remoteSnapshot){
   const events = new Map();
-  const eventKey = event => event.externalUid || `${event.title || ''}|${event.start || ''}|${event.end || ''}`;
+  const eventKey = event => event.id || event.externalUid || `${event.title || ''}|${event.start || ''}|${event.end || ''}`;
   [...(remoteSnapshot.events || []), ...(localSnapshot.events || [])].forEach(event => {
     const key = eventKey(event);
     const current = events.get(key);
