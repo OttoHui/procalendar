@@ -25,6 +25,7 @@ Use the steps below whenever you publish a new version and want to test the sync
    - In Supabase SQL Editor, run:
      DELETE FROM public.quad_sync;
 2. Re-run [supabase-schema.sql](supabase-schema.sql) to recreate the table and policies.
+   - This also installs the database trigger that refreshes `quad_sync.updated_at` on every update.
 3. On each device, clear the browser data for the site before testing.
    - Open the site in the browser.
    - Open Developer Tools.
@@ -42,7 +43,12 @@ Use the steps below whenever you publish a new version and want to test the sync
 8. On the Mac, create one new event and edit another event. Sync once.
 9. On the iPad, refresh the page, then click **Sync now** once. Confirm that the latest Mac snapshot appears and no old stale event remains.
 10. On the Mac, sync again and confirm the same final state is still present.
-11. If the app still shows old data, close the tab, clear site data again, and repeat from step 1.
+11. In Supabase SQL Editor, verify that the server row timestamp changes after a sync:
+   ```sql
+   SELECT token, device_id, updated_at
+   FROM public.quad_sync;
+   ```
+12. If the app still shows old data, close the tab, clear site data again, and repeat from step 1.
 
 Important: do not test with old calendar entries or older names from previous experiments, because stale local browser data can make a clean test look broken. Use short unique names only.
 
