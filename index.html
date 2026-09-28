@@ -808,7 +808,7 @@ const Cloud = (() => {
       openModal(`<div class="m-title">Connect an account</div><div class="auth-copy">Add your Supabase project URL and anon key to the two configuration constants in this file, then reload the app.</div><div class="auth-note">The anon key is intended for browser use. Row-level security in the database ensures each account can only read and write its own calendar.</div><div class="m-foot"><span class="spacer"></span><button class="btn btn-primary" data-close>Close</button></div>`, { width:420 }).el.querySelector('[data-close]').onclick = e => e.currentTarget.closest('.scrim').remove();
       return;
     }
-    const { close, el } = openModal(`<div class="m-title">Your calendar account</div><div class="auth-copy">Sign in to read and write this calendar from any device. New accounts can be created here.</div><div class="f-row"><div class="f-main"><label class="f-lab" for="authEmail">Email</label><input class="inp inp-full" id="authEmail" type="email" autocomplete="email" placeholder="you@example.com"/></div></div><div class="f-row"><div class="f-main"><label class="f-lab" for="authPassword">Password</label><input class="inp inp-full" id="authPassword" type="password" autocomplete="current-password" placeholder="At least 6 characters"/></div></div><div id="authError" hidden></div><div class="m-foot"><span class="spacer"></span><button class="btn" id="authSignUp">Create account</button><button class="btn btn-primary" id="authSignIn">Sign in</button></div>`, { width:420 });
+    const { close, el } = openModal(`<div class="m-title">Your calendar account</div><div class="auth-copy">Sign in to read and write this calendar from any device. New accounts can be created here.</div><div class="f-row"><div class="f-main"><label class="f-lab" for="authEmail">Email</label><input class="inp inp-full" id="authEmail" type="email" autocomplete="email" placeholder="you@example.com"/></div></div><div class="f-row"><div class="f-main"><label class="f-lab" for="authPassword">Password</label><input class="inp inp-full" id="authPassword" type="password" autocomplete="current-password" placeholder="At least 6 characters"/></div></div><div id="authError" hidden></div><div class="m-foot"><span class="spacer"></span><button class="btn" id="authResend">Resend confirmation</button><button class="btn" id="authSignUp">Create account</button><button class="btn btn-primary" id="authSignIn">Sign in</button></div>`, { width:520 });
     const run = async mode => {
       const email = el.querySelector('#authEmail').value.trim();
       const password = el.querySelector('#authPassword').value;
@@ -820,8 +820,24 @@ const Cloud = (() => {
         ? await client.auth.signInWithPassword({ email, password })
         : await client.auth.signUp({ email, password, options:{ emailRedirectTo:redirectTo } });
       if (result.error){ error.textContent = result.error.message; error.className = 'auth-error'; error.hidden = false; el.querySelectorAll('button').forEach(button => button.disabled = false); return; }
-      close();
-      toast(mode === 'signIn' ? 'Signed in. Loading your calendar…' : 'Account created. Check your email if confirmation is enabled.', { icon:'check', timeout:7000 });
+      if (mode === 'signIn') {
+        close();
+        toast('Signed in. Loading your calendar…', { icon:'check', timeout:7000 });
+      } else {
+        error.textContent = 'Account created. Check your email, including spam or promotions. You can resend the confirmation below.';
+        error.className = 'auth-error'; error.hidden = false;
+        el.querySelectorAll('button').forEach(button => button.disabled = false);
+      }
+    };
+    el.querySelector('#authResend').onclick = async () => {
+      const email = el.querySelector('#authEmail').value.trim();
+      const error = el.querySelector('#authError');
+      if (!email){ error.textContent = 'Enter your email first.'; error.className = 'auth-error'; error.hidden = false; return; }
+      el.querySelectorAll('button').forEach(button => button.disabled = true);
+      const { error: resendError } = await client.auth.resend({ type:'signup', email, options:{ emailRedirectTo:`${window.location.origin}${window.location.pathname}` } });
+      error.textContent = resendError ? resendError.message : 'A new confirmation email was requested. Check spam or promotions too.';
+      error.className = resendError ? 'auth-error' : 'auth-note'; error.hidden = false;
+      el.querySelectorAll('button').forEach(button => button.disabled = false);
     };
     el.querySelector('#authSignIn').onclick = () => run('signIn');
     el.querySelector('#authSignUp').onclick = () => run('signUp');
