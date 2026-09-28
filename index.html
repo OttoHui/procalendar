@@ -43,6 +43,13 @@ button{font-family:inherit}
 .brand-mark{width:34px;height:34px;border:1.5px solid var(--ink);border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:Fraunces;font-style:italic;font-weight:600;font-size:19px;background:var(--panel)}
 .brand-name{font-family:Fraunces;font-weight:600;font-size:18px;line-height:1.1}
 .brand-sub{font:500 10.5px 'IBM Plex Mono';letter-spacing:.1em;text-transform:uppercase;color:var(--ink3)}
+.account-panel{margin:0 16px 14px;padding:10px 11px;border:1px solid var(--line);border-radius:10px;background:var(--panel2)}
+.account-row{display:flex;align-items:center;gap:9px;min-width:0}
+.account-avatar{width:27px;height:27px;border-radius:50%;background:var(--ink);color:var(--panel);display:flex;align-items:center;justify-content:center;font:600 11px 'IBM Plex Mono';flex:none}
+.account-copy{min-width:0;flex:1}
+.account-name{font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.account-status{font:500 9.5px 'IBM Plex Mono';color:var(--ink3);margin-top:2px}
+.account-btn{width:100%;justify-content:center;margin-top:8px;padding:7px 9px;font-size:12px}
 
 /* ---------- buttons ---------- */
 .btn{display:inline-flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;border:1px solid var(--line2);background:var(--panel);color:var(--ink);padding:9px 14px;border-radius:9px;cursor:pointer;transition:border-color .15s,background .15s}
@@ -277,6 +284,9 @@ textarea.inp{resize:vertical;min-height:64px;line-height:1.5;font-family:inherit
 .toast-msg{flex:1;line-height:1.4}
 .toast-act{border:0;background:rgba(255,255,255,.14);color:inherit;font-size:12px;font-weight:600;padding:5px 11px;border-radius:7px;cursor:pointer;white-space:nowrap}
 .toast-act:hover{background:rgba(255,255,255,.24)}
+.auth-copy{font-size:13px;line-height:1.55;color:var(--ink2);margin:-5px 0 12px}
+.auth-error{font-size:12px;line-height:1.45;color:var(--wine);background:#F7ECEC;border-radius:8px;padding:8px 10px;margin-top:8px}
+.auth-note{font-size:11px;line-height:1.45;color:var(--ink3);margin-top:10px}
 
 /* ---------- first-run guide ---------- */
 #guide{position:fixed;inset:0;z-index:200;background:rgba(28,22,13,.5);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;animation:fade .2s}
@@ -332,6 +342,7 @@ kbd{font:600 10.5px 'IBM Plex Mono';border:1px solid var(--line2);border-bottom-
       <div class="brand-mark">Q</div>
       <div><div class="brand-name">Quad</div><div class="brand-sub">Four-year planner</div></div>
     </div>
+    <div id="accountPanel" class="account-panel"></div>
     <button id="newBtn" class="btn btn-primary"></button>
     <div class="sb" id="miniCal"></div>
     <div class="sb">
@@ -344,7 +355,7 @@ kbd{font:600 10.5px 'IBM Plex Mono';border:1px solid var(--line2);border-bottom-
       <div class="sb-head"><span class="sb-title">Up next</span></div>
       <div id="upNext"></div>
     </div>
-    <div class="sb-foot">Everything is stored privately on this device.<br>Back up from the menu from time to time.</div>
+    <div class="sb-foot">Sign in to keep your calendar available across devices.<br>Back up from the menu when needed.</div>
   </aside>
   <div id="sbscrim"></div>
 
@@ -355,6 +366,7 @@ kbd{font:600 10.5px 'IBM Plex Mono';border:1px solid var(--line2);border-bottom-
       <div class="search" id="searchWrap"><input id="q" placeholder="Search events…" autocomplete="off"/></div>
       <div style="flex:1"></div>
       <button class="icon-btn" id="helpBtn" title="Guide (?)"></button>
+      <button class="icon-btn" id="accountBtn" title="Account"></button>
       <button class="icon-btn" id="menuBtn" title="Menu"></button>
     </header>
     <div id="toolbar">
@@ -378,6 +390,8 @@ kbd{font:600 10.5px 'IBM Plex Mono';border:1px solid var(--line2);border-bottom-
 <input type="file" id="importFile" accept="application/json" hidden>
 <input type="file" id="importIcsFile" accept=".ics,text/calendar" hidden>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
 /* ═══════════════════════════════════════════════════════════════
    QUAD — four-year planner
@@ -397,6 +411,9 @@ kbd{font:600 10.5px 'IBM Plex Mono';border:1px solid var(--line2);border-bottom-
 /* ─── 1. CONFIG & SEED DATA ─────────────────────────────────── */
 
 const WEEK_START = 1; // Monday
+const SUPABASE_URL = 'https://YOUR-PROJECT.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_CONFIGURED = !SUPABASE_URL.includes('YOUR-PROJECT') && !SUPABASE_ANON_KEY.includes('YOUR_');
 
 /* ✏️ EDIT ME — public holidays & special dates.
    One line per date: ['YYYY-MM-DD', 'Name'].
@@ -527,6 +544,7 @@ const ICONS = {
   menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',
   dots:'<circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none"/>',
   help:'<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.4 2.33c-.7.28-1 .77-1 1.62"/><path d="M12 16.7h.01"/>',
+  user:'<circle cx="12" cy="8" r="3.2"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/>',
   repeat:'<path d="M17 2.5l3.5 3.5L17 9.5"/><path d="M3.5 11.5V9.5a3.5 3.5 0 0 1 3.5-3.5h13.5"/><path d="M7 21.5L3.5 18 7 14.5"/><path d="M20.5 12.5v2a3.5 3.5 0 0 1-3.5 3.5H3.5"/>',
   check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   download:'<path d="M12 3.5v11M7.5 10.5L12 15l4.5-4.5M4.5 19.5h15"/>',
@@ -617,7 +635,7 @@ const DB = (() => {
                : col === 'labels' ? [...labels.values()] : settings;
     adapter.write(K[col], data);
   }
-  function emit(topic){ Object.values(subs).flat().forEach(f => f(topic)); }
+  function emit(topic, payload){ Object.values(subs).flat().forEach(f => f(topic, payload)); }
 
   function addSeedEvent(title, start, end, labelId){
     const exists = [...events.values()].some(e => e.title === title && e.start === start && e.end === end);
@@ -673,36 +691,42 @@ const DB = (() => {
   }
 
   const DB = {
-    on(fn){ (subs._ = subs._ || []).push(fn); },
+    on(fn){ (subs._ = subs._ || []).push(fn); return () => { subs._ = (subs._ || []).filter(item => item !== fn); }; },
+    snapshot: () => ({ events:[...events.values()], labels:[...labels.values()], settings:{ ...settings } }),
+    resetToSeeded(){
+      events = new Map(); labels = new Map(); settings = {}; meta = {};
+      seedIfNeeded(); emit('all');
+    },
     events: {
       list: () => [...events.values()],
       get: id => events.get(id) || null,
-      create(data){ const ev = normalizeEvent(data); events.set(ev.id, ev); persist('events'); emit('events'); return ev; },
+      create(data){ const ev = normalizeEvent(data); events.set(ev.id, ev); persist('events'); emit('events', { action:'upsert', item:ev }); return ev; },
       update(id, patch){ const ev = events.get(id); if(!ev || ev.labelId === 'lb_cityu' || ev.labelId === 'lb_holiday') return;
         Object.assign(ev, patch, { updatedAt:new Date().toISOString() });
-        events.set(id, ev); persist('events'); emit('events'); return ev; },
+        events.set(id, ev); persist('events'); emit('events', { action:'upsert', item:ev }); return ev;
+      },
       remove(id){
         const event = events.get(id);
         if (!event || event.labelId === 'lb_cityu' || event.labelId === 'lb_holiday') return;
         events.delete(id);
-        persist('events'); emit('events');
+        persist('events'); emit('events', { action:'delete', id });
       },
     },
     labels: {
       list: () => [...labels.values()],
       get: id => labels.get(id) || null,
       create(data){ const l = { id:'lb_'+uid().slice(0,8), color:SWATCHES[0], ...data };
-        labels.set(l.id, l); persist('labels'); emit('labels'); return l; },
+        labels.set(l.id, l); persist('labels'); emit('labels', { action:'upsert', item:l }); return l; },
       update(id, patch){ const l = labels.get(id); if(!l || l.locked || id === 'lb_cityu' || id === 'lb_holiday') return;
-        Object.assign(l, patch); labels.set(id, l); persist('labels'); emit('labels'); },
+        Object.assign(l, patch); labels.set(id, l); persist('labels'); emit('labels', { action:'upsert', item:l }); },
       remove(id){ const l = labels.get(id); if(!l || l.locked || id === 'lb_cityu' || id === 'lb_holiday') return;
         labels.delete(id);
         events.forEach(ev => { if(ev.labelId === id) ev.labelId = ''; });
-        persist('labels'); persist('events'); emit('labels'); },
+        persist('labels'); persist('events'); emit('labels', { action:'delete', id }); },
     },
     settings: {
       get: (k, def) => settings[k] ?? def,
-      set(k, v){ settings[k] = v; persist('settings'); },
+      set(k, v){ settings[k] = v; persist('settings'); emit('settings'); },
       list: () => ({ ...settings }),
     },
     syncBase: () => meta.syncBase || null,
@@ -729,9 +753,7 @@ const DB = (() => {
       events = new Map(nextEvents);
       labels = new Map(nextLabels);
       if (!labels.has('lb_holiday')) labels.set('lb_holiday', { id:'lb_holiday', name:'Holidays', color:'#6E705C', locked:true });
-      const localSync = Object.fromEntries([...SYNC_META_KEYS].filter(key => settings[key] !== undefined).map(key => [key, settings[key]]));
-      const incomingSettings = Object.fromEntries(Object.entries(data.settings || {}).filter(([key]) => !SYNC_META_KEYS.has(key)));
-      settings = { ...incomingSettings, ...settings, ...localSync };
+      settings = { ...(data.settings || {}) };
       meta = { ...meta, ...(data.meta || {}), seeded:true };
       persist('events'); persist('labels'); persist('settings'); adapter.write(K.meta, meta); emit('all');
     },
@@ -755,6 +777,161 @@ const DB = (() => {
   const ready = hydrate();
   DB.ready = ready;
   return DB;
+})();
+
+/* ─── 3b. ACCOUNT CLOUD — per-user Supabase storage ─────────── */
+const Cloud = (() => {
+  let client = null, user = null, channel = null, loading = false, saveTimer = null;
+
+  function configured(){ return SUPABASE_CONFIGURED && !!window.supabase?.createClient; }
+  function initials(email){ return String(email || '?').trim().slice(0, 1).toUpperCase(); }
+  function status(){ return { configured:configured(), user }; }
+
+  function renderAccount(){
+    const panel = $('#accountPanel');
+    const button = $('#accountBtn');
+    if (!panel || !button) return;
+    button.innerHTML = I('user', 17);
+    if (!configured()) {
+      panel.innerHTML = `<div class="account-row"><div class="account-avatar">Q</div><div class="account-copy"><div class="account-name">Local calendar</div><div class="account-status">Cloud account not configured</div></div></div><button class="btn account-btn" id="accountAction">Set up account</button>`;
+    } else if (!user) {
+      panel.innerHTML = `<div class="account-row"><div class="account-avatar">Q</div><div class="account-copy"><div class="account-name">Local calendar</div><div class="account-status">Not signed in</div></div></div><button class="btn account-btn" id="accountAction">Sign in</button>`;
+    } else {
+      panel.innerHTML = `<div class="account-row"><div class="account-avatar">${esc(initials(user.email))}</div><div class="account-copy"><div class="account-name">${esc(user.email)}</div><div class="account-status">Synced across devices</div></div></div><button class="btn account-btn" id="accountAction">Sign out</button>`;
+    }
+    $('#accountAction')?.addEventListener('click', () => user ? signOut() : openAuthModal());
+    button.title = user ? `Signed in as ${user.email}` : 'Account';
+  }
+
+  function openAuthModal(){
+    if (!configured()) {
+      openModal(`<div class="m-title">Connect an account</div><div class="auth-copy">Add your Supabase project URL and anon key to the two configuration constants in this file, then reload the app.</div><div class="auth-note">The anon key is intended for browser use. Row-level security in the database ensures each account can only read and write its own calendar.</div><div class="m-foot"><span class="spacer"></span><button class="btn btn-primary" data-close>Close</button></div>`, { width:420 }).el.querySelector('[data-close]').onclick = e => e.currentTarget.closest('.scrim').remove();
+      return;
+    }
+    const { close, el } = openModal(`<div class="m-title">Your calendar account</div><div class="auth-copy">Sign in to read and write this calendar from any device. New accounts can be created here.</div><div class="f-row"><div class="f-main"><label class="f-lab" for="authEmail">Email</label><input class="inp inp-full" id="authEmail" type="email" autocomplete="email" placeholder="you@example.com"/></div></div><div class="f-row"><div class="f-main"><label class="f-lab" for="authPassword">Password</label><input class="inp inp-full" id="authPassword" type="password" autocomplete="current-password" placeholder="At least 6 characters"/></div></div><div id="authError" hidden></div><div class="m-foot"><span class="spacer"></span><button class="btn" id="authSignUp">Create account</button><button class="btn btn-primary" id="authSignIn">Sign in</button></div>`, { width:420 });
+    const run = async mode => {
+      const email = el.querySelector('#authEmail').value.trim();
+      const password = el.querySelector('#authPassword').value;
+      const error = el.querySelector('#authError');
+      if (!email || password.length < 6){ error.textContent = 'Enter a valid email and a password with at least 6 characters.'; error.className = 'auth-error'; error.hidden = false; return; }
+      el.querySelectorAll('button').forEach(button => button.disabled = true);
+      const result = mode === 'signIn'
+        ? await client.auth.signInWithPassword({ email, password })
+        : await client.auth.signUp({ email, password });
+      if (result.error){ error.textContent = result.error.message; error.className = 'auth-error'; error.hidden = false; el.querySelectorAll('button').forEach(button => button.disabled = false); return; }
+      close();
+      toast(mode === 'signIn' ? 'Signed in. Loading your calendar…' : 'Account created. Check your email if confirmation is enabled.', { icon:'check', timeout:7000 });
+    };
+    el.querySelector('#authSignIn').onclick = () => run('signIn');
+    el.querySelector('#authSignUp').onclick = () => run('signUp');
+  }
+
+  async function rows(){
+    const [events, labels, settings] = await Promise.all([
+      client.from('calendar_events').select('event_id,data'),
+      client.from('calendar_labels').select('label_id,data'),
+      client.from('calendar_settings').select('setting_key,data'),
+    ]);
+    const failure = [events, labels, settings].find(result => result.error);
+    if (failure) throw failure.error;
+    return {
+      events: events.data.map(row => row.data),
+      labels: labels.data.map(row => row.data),
+      settings: Object.fromEntries(settings.data.map(row => [row.setting_key, row.data])),
+    };
+  }
+
+  async function pushSnapshot(snapshot){
+    const now = new Date().toISOString();
+    const eventRows = snapshot.events.map(item => ({ user_id:user.id, event_id:item.id, data:item, updated_at:now }));
+    const labelRows = snapshot.labels.map(item => ({ user_id:user.id, label_id:item.id, data:item, updated_at:now }));
+    const settingRows = Object.entries(snapshot.settings).map(([key, data]) => ({ user_id:user.id, setting_key:key, data, updated_at:now }));
+    const results = await Promise.all([
+      client.from('calendar_events').upsert(eventRows, { onConflict:'user_id,event_id' }),
+      client.from('calendar_labels').upsert(labelRows, { onConflict:'user_id,label_id' }),
+      client.from('calendar_settings').upsert(settingRows, { onConflict:'user_id,setting_key' }),
+    ]);
+    const failure = results.find(result => result.error);
+    if (failure) throw failure.error;
+  }
+
+  async function saveMutation(topic, payload){
+    if (!user || loading) return;
+    if (topic === 'events' && payload?.action === 'upsert') {
+      const { error } = await client.from('calendar_events').upsert({ user_id:user.id, event_id:payload.item.id, data:payload.item, updated_at:new Date().toISOString() }, { onConflict:'user_id,event_id' });
+      if (error) toast(`Calendar save failed: ${error.message}`, { icon:'x', timeout:8000 });
+      return;
+    }
+    if (topic === 'events' && payload?.action === 'delete') {
+      const { error } = await client.from('calendar_events').delete().eq('user_id', user.id).eq('event_id', payload.id);
+      if (error) toast(`Calendar save failed: ${error.message}`, { icon:'x', timeout:8000 });
+      return;
+    }
+    if (topic === 'labels' && payload?.action === 'upsert') {
+      const { error } = await client.from('calendar_labels').upsert({ user_id:user.id, label_id:payload.item.id, data:payload.item, updated_at:new Date().toISOString() }, { onConflict:'user_id,label_id' });
+      if (error) toast(`Calendar save failed: ${error.message}`, { icon:'x', timeout:8000 });
+      return;
+    }
+    if (topic === 'labels' && payload?.action === 'delete') {
+      const { error } = await client.from('calendar_labels').delete().eq('user_id', user.id).eq('label_id', payload.id);
+      if (error) toast(`Calendar save failed: ${error.message}`, { icon:'x', timeout:8000 });
+      return;
+    }
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => pushSnapshot(DB.snapshot()).catch(error => toast(`Calendar save failed: ${error.message}`, { icon:'x', timeout:8000 })), 250);
+  }
+
+  async function refresh(){
+    if (!user || loading) return;
+    loading = true;
+    try { DB.applySnapshot(await rows()); }
+    catch (error){ toast(`Calendar refresh failed: ${error.message}`, { icon:'x', timeout:8000 }); }
+    finally { loading = false; }
+  }
+
+  async function loadUser(nextUser){
+    user = nextUser;
+    renderAccount();
+    if (channel){ await client.removeChannel(channel); channel = null; }
+    if (!user) return;
+    loading = true;
+    try {
+      const remote = await rows();
+      if (!remote.events.length && !remote.labels.length && !Object.keys(remote.settings).length){
+        const localSnapshot = DB.snapshot();
+        const hasPersonalData = localSnapshot.events.some(event => !['lb_cityu','lb_holiday'].includes(event.labelId)) || localSnapshot.labels.some(label => !label.locked);
+        if (!hasPersonalData) DB.resetToSeeded();
+        await pushSnapshot(DB.snapshot());
+      } else DB.applySnapshot(remote);
+      channel = client.channel(`calendar-${user.id}`)
+        .on('postgres_changes', { event:'*', schema:'public', table:'calendar_events', filter:`user_id=eq.${user.id}` }, () => refresh())
+        .on('postgres_changes', { event:'*', schema:'public', table:'calendar_labels', filter:`user_id=eq.${user.id}` }, () => refresh())
+        .on('postgres_changes', { event:'*', schema:'public', table:'calendar_settings', filter:`user_id=eq.${user.id}` }, () => refresh());
+      await channel.subscribe();
+      toast('Calendar loaded from your account.', { icon:'check' });
+    } catch (error){ toast(`Account calendar failed to load: ${error.message}`, { icon:'x', timeout:9000 }); }
+    finally { loading = false; renderAccount(); }
+  }
+
+  async function init(){
+    renderAccount();
+    if (!configured()) return;
+    client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    DB.on(saveMutation);
+    client.auth.onAuthStateChange((_event, session) => { setTimeout(() => loadUser(session?.user || null), 0); });
+    const { data, error } = await client.auth.getSession();
+    if (error) toast(`Account session failed: ${error.message}`, { icon:'x', timeout:8000 });
+    await loadUser(data.session?.user || null);
+  }
+
+  async function signOut(){
+    if (!client) return;
+    const { error } = await client.auth.signOut();
+    if (error) toast(`Sign out failed: ${error.message}`, { icon:'x' });
+    else { DB.resetToSeeded(); toast('Signed out. This device is showing a fresh local calendar.', { icon:'check' }); }
+  }
+
+  return { init, openAuthModal, signOut, renderAccount, status };
 })();
 
 /* ─── 4. OCCURRENCE ENGINE (recurrence + reminders) ─────────── */
@@ -1801,7 +1978,7 @@ const GUIDE_STEPS = [
   { ill:'pencil', eyebrow:'Fill it with your life', title:'Click a day. Drag a week. Done.',
     body:'Click any date to add an event. In <b>Week view</b>, drag across the grid to block out a lecture or study session. Every event can <b>repeat</b> (perfect for weekly classes), carry a colour label, a location, notes and reminders.' },
   { ill:'bell', eyebrow:'Make it yours — and keep it safe', title:'One last thing',
-    body:'Labels double as filters: toggle them in the sidebar to focus. Everything is stored <b>privately in this browser</b> — export a backup from the menu now, and again at the end of each semester.',
+    body:'Labels double as filters: toggle them in the sidebar to focus. Sign in to keep your calendar <b>private and available across devices</b> — export a backup from the menu now, and again at the end of each semester.',
     keys:true },
 ];
 let guideStep = 0, guideEl = null;
@@ -1839,6 +2016,7 @@ function openGuide(){ guideStep = 0;
  $('#prevBtn').onclick = () => navPeriod(-1);
  $('#nextBtn').onclick = () => navPeriod(1);
  $('#helpBtn').onclick = openGuide;
+ $('#accountBtn').onclick = () => Cloud.openAuthModal();
  $('#viewSeg').querySelectorAll('button').forEach(b => b.onclick = () => {
   state.view = b.dataset.v; saveState(); render(); });
  $('#sbToggle').onclick = () => document.body.classList.toggle('sb-open');
@@ -1880,6 +2058,7 @@ DB.ready.then(() => {
   setInterval(() => { Reminders.tick(); updateNowLine(); }, 30000);
   Reminders.tick();
   if (!DB.settings.get('onboarded', false)) setTimeout(openGuide, 350);
+  Cloud.init();
 });
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
