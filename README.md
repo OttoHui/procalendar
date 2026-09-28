@@ -2,7 +2,7 @@
 
 Quad is now configured for local-only use. It stores events, labels, settings, reminders, and timetable data in the browser using IndexedDB with localStorage fallback.
 
-Supabase and cross-device synchronization are not used by the app.
+The app does not use a cloud database or cross-device synchronization.
 
 ## Use the calendar
 
@@ -18,6 +18,6 @@ For a completely clean browser test, clear site data for the app origin, includi
 
 ## Deployment
 
-The app can still be hosted on GitHub Pages or opened through a local web server. XAMPP, Apache, PHP, MySQL, and Supabase are not required.
+The app can be hosted on GitHub Pages or opened through a local web server. No server-side runtime is required.
 
-The app has no cloud database dependency.
+The app has no external service dependency.
