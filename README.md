@@ -13,7 +13,9 @@ Without Supabase configuration, data stays in the current browser profile. With 
 1. Create a Supabase project.
 2. Run [`supabase-schema.sql`](supabase-schema.sql) in the Supabase SQL editor.
 3. Copy the project URL and anon key into `SUPABASE_URL` and `SUPABASE_ANON_KEY` near the top of `index.html`.
-4. In Supabase Authentication, configure the email provider and allowed site URL for the deployed app.
+4. In Supabase Authentication > URL Configuration, set the Site URL to `https://ottohui.github.io/procalendar/` and add these Redirect URLs:
+	- `https://ottohui.github.io/procalendar/`
+	- `http://localhost:3000/`
 
 The anon key is safe to include in a browser application when row-level security is enabled. Never put a service-role key in `index.html`.
 
