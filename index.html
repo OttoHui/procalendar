@@ -414,6 +414,7 @@ const WEEK_START = 1; // Monday
 const SUPABASE_URL = 'https://cfucwmbhjdtxqtooochu.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmdWN3bWJoamR0eHF0b29vY2h1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxMDczNzcsImV4cCI6MjEwNTY4MzM3N30.n-wVj1JUE4OKqTr36ifj0aWNZThtZrCt4KM09EbjhXA';
 const SUPABASE_CONFIGURED = !SUPABASE_URL.includes('YOUR-PROJECT') && !SUPABASE_ANON_KEY.includes('YOUR_');
+const AUTH_REDIRECT_URL = 'https://ottohui.github.io/procalendar/';
 
 /* ✏️ EDIT ME — public holidays & special dates.
    One line per date: ['YYYY-MM-DD', 'Name'].
@@ -815,10 +816,9 @@ const Cloud = (() => {
       const error = el.querySelector('#authError');
       if (!email || password.length < 6){ error.textContent = 'Enter a valid email and a password with at least 6 characters.'; error.className = 'auth-error'; error.hidden = false; return; }
       el.querySelectorAll('button').forEach(button => button.disabled = true);
-      const redirectTo = `${window.location.origin}${window.location.pathname}`;
       const result = mode === 'signIn'
         ? await client.auth.signInWithPassword({ email, password })
-        : await client.auth.signUp({ email, password, options:{ emailRedirectTo:redirectTo } });
+        : await client.auth.signUp({ email, password, options:{ emailRedirectTo:AUTH_REDIRECT_URL } });
       if (result.error){ error.textContent = result.error.message; error.className = 'auth-error'; error.hidden = false; el.querySelectorAll('button').forEach(button => button.disabled = false); return; }
       if (mode === 'signIn') {
         close();
@@ -834,7 +834,7 @@ const Cloud = (() => {
       const error = el.querySelector('#authError');
       if (!email){ error.textContent = 'Enter your email first.'; error.className = 'auth-error'; error.hidden = false; return; }
       el.querySelectorAll('button').forEach(button => button.disabled = true);
-      const { error: resendError } = await client.auth.resend({ type:'signup', email, options:{ emailRedirectTo:`${window.location.origin}${window.location.pathname}` } });
+      const { error: resendError } = await client.auth.resend({ type:'signup', email, options:{ emailRedirectTo:AUTH_REDIRECT_URL } });
       error.textContent = resendError ? resendError.message : 'A new confirmation email was requested. Check spam or promotions too.';
       error.className = resendError ? 'auth-error' : 'auth-note'; error.hidden = false;
       el.querySelectorAll('button').forEach(button => button.disabled = false);

@@ -16,6 +16,7 @@ Without Supabase configuration, data stays in the current browser profile. With 
 4. In Supabase Authentication > URL Configuration, set the Site URL to `https://ottohui.github.io/procalendar/` and add these Redirect URLs:
 	- `https://ottohui.github.io/procalendar/`
 	- `http://localhost:3000/`
+5. In Authentication > Email Templates > Confirm signup, make sure the link uses `{{ .ConfirmationURL }}`. Do not replace it with a hardcoded `localhost:3000` URL.
 
 The anon key is safe to include in a browser application when row-level security is enabled. Never put a service-role key in `index.html`.
 
