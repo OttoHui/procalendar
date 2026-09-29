@@ -546,6 +546,8 @@ const ICONS = {
   dots:'<circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none"/>',
   help:'<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.4 2.33c-.7.28-1 .77-1 1.62"/><path d="M12 16.7h.01"/>',
   user:'<circle cx="12" cy="8" r="3.2"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/>',
+  settings:'<path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z"/><path d="M4.9 15.5l-1.3 1 .9 1.6 1.6-.5a7.7 7.7 0 0 0 1.8 1l.3 1.7h1.9l.3-1.7a7.7 7.7 0 0 0 1.8-1l1.6.5.9-1.6-1.3-1a7.4 7.4 0 0 0 0-2l1.3-1-.9-1.6-1.6.5a7.7 7.7 0 0 0-1.8-1L10.1 8H8.2l-.3 1.7a7.7 7.7 0 0 0-1.8 1l-1.6-.5-.9 1.6 1.3 1a7.4 7.4 0 0 0 0 2z"/>',
+  logout:'<path d="M10 4H5.5A1.5 1.5 0 0 0 4 5.5v13A1.5 1.5 0 0 0 5.5 20H10"/><path d="M14 8l4 4-4 4M18 12H8"/>',
   repeat:'<path d="M17 2.5l3.5 3.5L17 9.5"/><path d="M3.5 11.5V9.5a3.5 3.5 0 0 1 3.5-3.5h13.5"/><path d="M7 21.5L3.5 18 7 14.5"/><path d="M20.5 12.5v2a3.5 3.5 0 0 1-3.5 3.5H3.5"/>',
   check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   download:'<path d="M12 3.5v11M7.5 10.5L12 15l4.5-4.5M4.5 19.5h15"/>',
@@ -788,6 +790,20 @@ const Cloud = (() => {
   function initials(email){ return String(email || '?').trim().slice(0, 1).toUpperCase(); }
   function status(){ return { configured:configured(), user }; }
 
+  function openAccountDetails(title){
+    const { close, el } = openModal(`<div class="m-title">${title}</div><div class="auth-copy">Your calendar is private to this account and available on your signed-in devices.</div><div class="f-row"><div class="f-main"><span class="f-lab">Email</span><div>${esc(user?.email || '')}</div></div></div><div class="f-row"><div class="f-main"><span class="f-lab">Account status</span><div>Email confirmed</div></div></div><div class="m-foot"><span class="spacer"></span><button class="btn btn-primary" data-close>Done</button></div>`, { width:420 });
+    el.querySelector('[data-close]').onclick = close;
+  }
+
+  function openAccountMenu(){
+    if (!user) return openAuthModal();
+    openPopover($('#accountBtn'), `<button class="pop-item" data-account="profile">${I('user',15)}Profile</button><button class="pop-item" data-account="settings">${I('settings',15)}Settings</button><div class="pop-sep"></div><button class="pop-item danger" data-account="logout">${I('logout',15)}Log out</button>`, { width:190, onMount(el){
+      el.querySelector('[data-account="profile"]').onclick = () => { closePopover(); openAccountDetails('Profile'); };
+      el.querySelector('[data-account="settings"]').onclick = () => { closePopover(); openAccountDetails('Account settings'); };
+      el.querySelector('[data-account="logout"]').onclick = () => { closePopover(); signOut(); };
+    }});
+  }
+
   function renderAccount(){
     const panel = $('#accountPanel');
     const button = $('#accountBtn');
@@ -800,7 +816,7 @@ const Cloud = (() => {
     } else {
       panel.innerHTML = `<div class="account-row"><div class="account-avatar">${esc(initials(user.email))}</div><div class="account-copy"><div class="account-name">${esc(user.email)}</div><div class="account-status">Synced across devices</div></div></div><button class="btn account-btn" id="accountAction">Sign out</button>`;
     }
-    $('#accountAction')?.addEventListener('click', () => user ? signOut() : openAuthModal());
+    $('#accountAction')?.addEventListener('click', () => user ? openAccountMenu() : openAuthModal());
     button.title = user ? `Signed in as ${user.email}` : 'Account';
   }
 
@@ -964,7 +980,7 @@ const Cloud = (() => {
     else { DB.resetToSeeded(); toast('Signed out. This device is showing a fresh local calendar.', { icon:'check' }); }
   }
 
-  return { init, openAuthModal, signOut, renderAccount, status };
+  return { init, openAuthModal, openAccountMenu, signOut, renderAccount, status };
 })();
 
 /* ─── 4. OCCURRENCE ENGINE (recurrence + reminders) ─────────── */
@@ -2049,7 +2065,7 @@ function openGuide(){ guideStep = 0;
  $('#prevBtn').onclick = () => navPeriod(-1);
  $('#nextBtn').onclick = () => navPeriod(1);
  $('#helpBtn').onclick = openGuide;
- $('#accountBtn').onclick = () => Cloud.openAuthModal();
+ $('#accountBtn').onclick = () => Cloud.openAccountMenu();
  $('#viewSeg').querySelectorAll('button').forEach(b => b.onclick = () => {
   state.view = b.dataset.v; saveState(); render(); });
  $('#sbToggle').onclick = () => document.body.classList.toggle('sb-open');
