@@ -782,7 +782,7 @@ const DB = (() => {
 
 /* ─── 3b. ACCOUNT CLOUD — per-user Supabase storage ─────────── */
 const Cloud = (() => {
-  let client = null, user = null, channel = null, loading = false, saveTimer = null, userLoad = Promise.resolve();
+  let client = null, user = null, channel = null, loading = false, saveTimer = null, userLoad = Promise.resolve(), queuedUserId = null, loadedUserId = null;
 
   function configured(){ return SUPABASE_CONFIGURED && !!window.supabase?.createClient; }
   function initials(email){ return String(email || '?').trim().slice(0, 1).toUpperCase(); }
@@ -908,6 +908,7 @@ const Cloud = (() => {
 
   async function loadUser(nextUser){
     user = nextUser;
+    loadedUserId = nextUser?.id || null;
     renderAccount();
     if (channel){ await client.removeChannel(channel); channel = null; }
     if (!user) return;
@@ -948,7 +949,11 @@ const Cloud = (() => {
   }
 
   function queueUserLoad(nextUser){
+    const nextUserId = nextUser?.id || null;
+    if (nextUserId === loadedUserId || nextUserId === queuedUserId) return userLoad;
+    queuedUserId = nextUserId;
     userLoad = userLoad.then(() => loadUser(nextUser));
+    userLoad.finally(() => { if (queuedUserId === nextUserId) queuedUserId = null; });
     return userLoad;
   }
 
