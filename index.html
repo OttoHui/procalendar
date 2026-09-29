@@ -782,7 +782,7 @@ const DB = (() => {
 
 /* ─── 3b. ACCOUNT CLOUD — per-user Supabase storage ─────────── */
 const Cloud = (() => {
-  let client = null, user = null, channel = null, loading = false, saveTimer = null;
+  let client = null, user = null, channel = null, loading = false, saveTimer = null, userLoad = Promise.resolve();
 
   function configured(){ return SUPABASE_CONFIGURED && !!window.supabase?.createClient; }
   function initials(email){ return String(email || '?').trim().slice(0, 1).toUpperCase(); }
@@ -920,12 +920,18 @@ const Cloud = (() => {
         if (!hasPersonalData) DB.resetToSeeded();
         await pushSnapshot(DB.snapshot());
       } else DB.applySnapshot(remote);
-      channel = client.channel(`calendar-${user.id}`)
-        .on('postgres_changes', { event:'*', schema:'public', table:'calendar_events', filter:`user_id=eq.${user.id}` }, () => refresh())
-        .on('postgres_changes', { event:'*', schema:'public', table:'calendar_labels', filter:`user_id=eq.${user.id}` }, () => refresh())
-        .on('postgres_changes', { event:'*', schema:'public', table:'calendar_settings', filter:`user_id=eq.${user.id}` }, () => refresh());
-      await channel.subscribe();
       toast('Calendar loaded from your account.', { icon:'check' });
+      try {
+        channel = client.channel(`calendar-${user.id}`)
+          .on('postgres_changes', { event:'*', schema:'public', table:'calendar_events', filter:`user_id=eq.${user.id}` }, () => refresh())
+          .on('postgres_changes', { event:'*', schema:'public', table:'calendar_labels', filter:`user_id=eq.${user.id}` }, () => refresh())
+          .on('postgres_changes', { event:'*', schema:'public', table:'calendar_settings', filter:`user_id=eq.${user.id}` }, () => refresh());
+        await channel.subscribe();
+      } catch (error) {
+        channel = null;
+        console.warn('Realtime updates unavailable:', error);
+        toast('Calendar loaded. Live updates are temporarily unavailable.', { icon:'x', timeout:7000 });
+      }
     } catch (error){ toast(`Account calendar failed to load: ${error.message}`, { icon:'x', timeout:9000 }); }
     finally { loading = false; renderAccount(); }
   }
@@ -935,10 +941,15 @@ const Cloud = (() => {
     if (!configured()) return;
     client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     DB.on(saveMutation);
-    client.auth.onAuthStateChange((_event, session) => { setTimeout(() => loadUser(session?.user || null), 0); });
+    client.auth.onAuthStateChange((_event, session) => { setTimeout(() => queueUserLoad(session?.user || null), 0); });
     const { data, error } = await client.auth.getSession();
     if (error) toast(`Account session failed: ${error.message}`, { icon:'x', timeout:8000 });
-    await loadUser(data.session?.user || null);
+    await queueUserLoad(data.session?.user || null);
+  }
+
+  function queueUserLoad(nextUser){
+    userLoad = userLoad.then(() => loadUser(nextUser));
+    return userLoad;
   }
 
   async function signOut(){
