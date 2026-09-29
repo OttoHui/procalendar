@@ -784,7 +784,7 @@ const DB = (() => {
 
 /* ─── 3b. ACCOUNT CLOUD — per-user Supabase storage ─────────── */
 const Cloud = (() => {
-  let client = null, user = null, channel = null, loading = false, saveTimer = null, userLoad = Promise.resolve(), queuedUserId = null, loadedUserId = null;
+  let client = null, user = null, channel = null, loading = false, saveTimer = null, saveQueue = Promise.resolve(), userLoad = Promise.resolve(), queuedUserId = null, loadedUserId = null;
 
   function configured(){ return SUPABASE_CONFIGURED && !!window.supabase?.createClient; }
   function initials(email){ return String(email || '?').trim().slice(0, 1).toUpperCase(); }
@@ -891,13 +891,17 @@ const Cloud = (() => {
   async function saveMutation(topic, payload){
     if (!user || loading) return;
     if (topic === 'events' && payload?.action === 'upsert') {
-      const { error } = await client.from('calendar_events').upsert({ user_id:user.id, event_id:payload.item.id, data:payload.item, updated_at:new Date().toISOString() }, { onConflict:'user_id,event_id' });
-      if (error) toast(`Calendar save failed: ${error.message}`, { icon:'x', timeout:8000 });
+      saveQueue = saveQueue.then(async () => {
+        const { error } = await client.from('calendar_events').upsert({ user_id:user.id, event_id:payload.item.id, data:payload.item, updated_at:new Date().toISOString() }, { onConflict:'user_id,event_id' });
+        if (error) throw error;
+      }).catch(error => toast(`Calendar save failed: ${error.message}`, { icon:'x', timeout:8000 }));
       return;
     }
     if (topic === 'events' && payload?.action === 'delete') {
-      const { error } = await client.from('calendar_events').delete().eq('user_id', user.id).eq('event_id', payload.id);
-      if (error) toast(`Calendar save failed: ${error.message}`, { icon:'x', timeout:8000 });
+      saveQueue = saveQueue.then(async () => {
+        const { error } = await client.from('calendar_events').delete().eq('user_id', user.id).eq('event_id', payload.id);
+        if (error) throw error;
+      }).catch(error => toast(`Calendar save failed: ${error.message}`, { icon:'x', timeout:8000 }));
       return;
     }
     if (topic === 'labels' && payload?.action === 'upsert') {
@@ -917,7 +921,7 @@ const Cloud = (() => {
   async function refresh(){
     if (!user || loading) return;
     loading = true;
-    try { DB.applySnapshot(await rows()); }
+    try { await saveQueue; DB.applySnapshot(await rows()); }
     catch (error){ toast(`Calendar refresh failed: ${error.message}`, { icon:'x', timeout:8000 }); }
     finally { loading = false; }
   }
