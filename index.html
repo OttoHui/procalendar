@@ -935,6 +935,23 @@ const Cloud = (() => {
     finally { loading = false; }
   }
 
+  async function readRemoteAfterWrites(){
+    await saveQueue;
+    const recentLocalIds = new Set(DB.events.list()
+      .filter(event => !['lb_cityu','lb_holiday'].includes(event.labelId))
+      .filter(event => Date.now() - Date.parse(event.updatedAt || event.createdAt || 0) < 10 * 60 * 1000)
+      .map(event => event.id));
+    let remote = await rows();
+    for (const delay of [250, 500, 1000]) {
+      const remoteIds = new Set(remote.events.map(event => event.id));
+      const missingRecent = [...recentLocalIds].some(id => !remoteIds.has(id));
+      if (!missingRecent) break;
+      await new Promise(resolve => setTimeout(resolve, delay));
+      remote = await rows();
+    }
+    return remote;
+  }
+
   async function loadUser(nextUser){
     user = nextUser;
     loadedUserId = nextUser?.id || null;
@@ -943,7 +960,7 @@ const Cloud = (() => {
     if (!user) return;
     loading = true;
     try {
-      const remote = await rows();
+      const remote = await readRemoteAfterWrites();
       if (!remote.events.length && !remote.labels.length && !Object.keys(remote.settings).length){
         const localSnapshot = DB.snapshot();
         const hasPersonalData = localSnapshot.events.some(event => !['lb_cityu','lb_holiday'].includes(event.labelId)) || localSnapshot.labels.some(label => !label.locked);
